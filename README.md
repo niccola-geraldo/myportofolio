@@ -39,7 +39,7 @@ Website portofolio pribadi dengan Django. Menampilkan profil dan bio, section Sk
 ## Refleksi
 ### Tugas 1
 
-1. Struktur halaman tersusun dari <header>, <nav>, <main>, <section>, <article>, dan <footer>. Elemen semantik HTML5 akan membuat struktur website lebih terstruktur dan mudah untuk dibaca manusia maupun robot search engine.
+1. Struktur halaman tersusun dari `<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, dan `<footer>`. Elemen semantik HTML5 akan membuat struktur website lebih terstruktur dan mudah untuk dibaca manusia maupun robot search engine.
 
 2. Tantangan utama dari mengatur CSS website agar tetap responsive adalah ketika berhadapan dengan platform mobile atau layar kecil. Solusi dari tantangan ini adalah menggunakan fungsi clamp pada teks dan juga jarak antar section diperbesar.
 
