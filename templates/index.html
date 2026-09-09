@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Niccola - Portfolio</title>
+    <title>{{ name }} - Portofolio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barriecito&family=Chivo:wght@400;600&display=swap" rel="stylesheet">
@@ -12,11 +12,12 @@
 <body>
     <header class="site-header">
         <div class="container">
-            <a href="#profile" class="brand">NicoGWD</a>
+            <a href="{% url 'main:show_main' %}" class="brand">{{ nickname }}</a>
             <nav>
-                <a href="#profile">Profile</a>
-                <a href="#skills">Skills</a>
-                <a href="#projects">Projects</a>
+                <a href="{% url 'main:show_main' %}">Profile</a>
+                <a href="{% url 'main:show_main' %}#skills">Skills</a>
+                <a href="{% url 'main:show_main' %}#projects">Projects</a>
+                <a href="{% url 'main:show_experience' %}">Experience</a>
             </nav>
         </div>
     </header>
@@ -26,22 +27,22 @@
             <div class="container hero-grid">
                 <div class="hero-identity">
                     <p class="hero-kicker">Computer Science @Universitas Indonesia</p>
-                    <h1>Niccola Geraldo Winaryo Durand</h1>
+                    <h1>{{ name }}</h1>
                 </div>
                 <div class="hero-photo">
                     <div class="photo-block"></div>
-                    <img class="avatar" src="/static/img/profile.jpg" alt="Photo of Niccola">
+                    <img class="avatar" src="/static/img/profile.jpg" alt="Photo of {{ name }}">
                 </div>
                 <div class="hero-details">
-                    <p class="bio">2nd-year CS student at Universitas Indonesia. Loves Hokben. Loves Gaming.</p>
+                    <p class="bio">{{ bio }}</p>
                     <dl class="meta-list">
                         <div class="meta-row">
                             <dt>NPM</dt>
-                            <dd>2506619070</dd>
+                            <dd>{{ npm }}</dd>
                         </div>
                         <div class="meta-row">
                             <dt>Program</dt>
-                            <dd>S1 Ilmu Komputer</dd>
+                            <dd>{{ study_program }}</dd>
                         </div>
                     </dl>
                     <div class="social-links">
@@ -118,7 +119,7 @@
 
     <footer class="site-footer">
         <div class="container">
-            <p>&copy; 2026 Niccola Geraldo Winaryo Durand. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
+           <p>&copy; 2026 {{ name }}. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
         </div>
     </footer>
 </body>
