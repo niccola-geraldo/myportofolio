@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from main.models import Experience
+from main.models import Experience, Project
 
 
 class MainTest(TestCase):
@@ -56,3 +56,33 @@ class MainTest(TestCase):
         self.assertFalse(self.experience.is_ongoing)
         self.assertContains(response, "Finished")
         self.assertNotContains(response, "Ongoing")
+
+
+class ProjectTest(TestCase):
+    def setUp(self):
+        self.project = Project.objects.create(
+            title="Universitas Indonesia Depok",
+            description="A Roblox experience recreating the UI Depok campus.",
+            tech_stack="Roblox Studio, Blender",
+            link="https://www.roblox.com/games/131740669743214/Universitas-Indonesia-Depok",
+        )
+
+    def test_projects_url_is_accessible(self):
+        response = self.client.get(reverse("main:show_projects"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects.html")
+
+    def test_projects_page_shows_model_data(self):
+        response = self.client.get(reverse("main:show_projects"))
+
+        self.assertContains(response, self.project.title)
+        self.assertContains(response, self.project.description)
+        self.assertContains(response, self.project.tech_stack)
+        self.assertContains(response, self.project.link)
+
+    def test_empty_projects_page(self):
+        Project.objects.all().delete()
+        response = self.client.get(reverse("main:show_projects"))
+
+        self.assertContains(response, "No projects added yet.")
