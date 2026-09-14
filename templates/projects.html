@@ -23,31 +23,26 @@
     </header>
 
     <main>
-        <section class="experience-section" id="experience">
+        <section class="projects-section" id="projects">
             <div class="container">
-                <p class="section-kicker">My journey so far</p>
-                <h1>Experience</h1>
+                <p class="section-kicker">What I've built</p>
+                <h1>Projects</h1>
 
-                <div class="experience-grid">
-                    {% for experience in experience_list %}
-                        <article class="experience-card">
-                            <span class="experience-category">
-                                {{ experience.get_category_display }}
-                            </span>
-                            <h2>{{ experience.title }}</h2>
-                            <p class="experience-description">
-                                {{ experience.description }}
+                <div class="projects-grid">
+                    {% for project in project_list %}
+                        <article class="project-item">
+                            <h2>{{ project.title }}</h2>
+                            <p class="project-tech">{{ project.tech_stack }}</p>
+                            <p class="project-description">
+                                {{ project.description }}
                             </p>
-
-                            {% if experience.is_ongoing %}
-                                <p class="experience-status">Ongoing</p>
-                            {% else %}
-                                <p class="experience-status">Finished</p>
+                            {% if project.link %}
+                                <a href="{{ project.link }}" class="project-external-link">View project</a>
                             {% endif %}
                         </article>
                     {% empty %}
                         <p class="empty-state">
-                            No experiences added yet.
+                            No projects added yet.
                         </p>
                     {% endfor %}
                 </div>

@@ -45,6 +45,14 @@ Website portofolio pribadi dengan Django. Menampilkan profil dan bio, section Sk
 
 3. Batasan yang saya alami ketika membuat web dengan gaya static web murni ini adalah semua konten harus ditulis secara manual dan *hardcoded* dalam konten HTML atau CSS itu sendiri. Saya juga tidak bisa membuat efek-efek visual yang memerlukan depedensi-dependensi lain dari elemen-elemen static web yang digunakan saat ini.
 
+### Tugas 2
+
+1. Alur MVT memisahkan tanggung jawab: `Project` (model) menyimpan data, `show_projects` (view) mengambil data dan memasukkannya ke context, lalu template `projects.html` merender data. Ini artinya data tidak di-*hardcode* di HTML, tetapi get dari database.
+
+2. Perbedaan utama antara section Experience (Tutorial 02) dan Projects (Tugas 2) terletak pada tipe datanya: model `Experience` memiliki field tanggal (`started_at`, `ended_at`) serta properti `is_ongoing` untuk status, sedangkan model `Project` menyimpan `tech_stack` dan `link`. Pola MVT-nya tetap sama saja, tetapi field dan tampilannya yang disesuaikan.
+
+3. Migrasi Django membuat perubahan model terstruktur dan mudah diterapkan. Kedua command tersebut memastikan struktur database selalu sinkron dengan definisi model tanpa perlu menulis SQL secara manual.
+
 ## AI Disclosure
 
 Pengerjaan tugas ini dibantu oleh AI. 
@@ -56,8 +64,8 @@ Model(s) yang digunakan:
 
 Bagian yang dibantu:
 
-- Memperbaiki struktur HTML untuk section tiga item Skills dan section Projects.
-- Menulis aturan CSS untuk tata letak kartu (grid), styling, dan breakpoint responsif.
+- Menyusun model `Project`, view `show_projects`, routing `main:show_projects`, dan template `projects.html` mengikuti pola MVT section Experience.
+- Menulis CSS untuk tata letak kartu section Projects agar konsisten dengan style yang ada.
 - Membantu menyusun dan memformat README.
 
 Semua perubahan yang dilakukan oleh AI telah melewati proses review secara manual oleh saya.

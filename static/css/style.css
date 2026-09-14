@@ -401,3 +401,59 @@ h1, h2, h3, .brand {
     font-size: 0.85rem;
     font-weight: 600;
 }
+
+.projects-section {
+    padding: 4rem 0;
+    border-top: 1px solid var(--line);
+}
+
+.projects-section h1 {
+    margin: 0.4rem 0 1.5rem;
+    font-size: 2rem;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.project-item {
+    padding: 1.25rem;
+    background-color: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.project-item h2 {
+    margin: 0.5rem 0;
+    font-size: 1.25rem;
+}
+
+.project-tech {
+    color: var(--accent-dark);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.project-description {
+    margin: 0.5rem 0 1rem;
+    color: var(--text-muted);
+}
+
+.project-external-link {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--paper);
+    background-color: var(--ink);
+    border-radius: var(--radius);
+    padding: 0.5rem 1.1rem;
+    transition: background-color 0.2s ease;
+}
+
+.project-external-link:hover {
+    background-color: var(--accent);
+}
