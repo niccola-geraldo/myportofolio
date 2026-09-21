@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Education - {{ name }}{% endblock title %}
+{% block content %}
+    <main>
+        <section class="experience-section" id="education">
+            <div class="container">
+                <p class="section-kicker">Riwayat pendidikan saya</p>
+                <div class="education-header">
+                    <h1>Education</h1>
+                    <a href="{% url 'main:create_education' %}"
+                       class="button education-add-button">
+                        <span aria-hidden="true">+</span>
+                        Tambah Pendidikan
+                    </a>
+                </div>
+                <div class="experience-grid education-grid">
+                    {% for education in education_list %}
+                        <article class="experience-card">
+                            <span class="experience-category">{{ education.get_degree_display }}</span>
+                            <h2>{{ education.institution }}</h2>
+                            <p class="education-meta">
+                                <strong>{{ education.major }}</strong>
+                            </p>
+                            <p class="education-years">
+                                {{ education.start_year }} &mdash;
+                                {% if education.is_ongoing %}
+                                    Sekarang
+                                {% else %}
+                                    {{ education.end_year }}
+                                {% endif %}
+                            </p>
+                            {% if education.is_ongoing %}
+                                <p class="education-status">Ongoing</p>
+                            {% else %}
+                                <p class="education-status">Selesai</p>
+                            {% endif %}
+                            <p class="education-description">{{ education.description }}</p>
+                            {% if education.gpa %}
+                                <p class="education-gpa">GPA: {{ education.gpa }}</p>
+                            {% endif %}
+                            <div class="education-card-actions">
+                                <div class="education-actions">
+                                    <a href="{% url 'main:update_education' education.id %}"
+                                       class="button button-secondary">Edit</a>
+                                    {% include "components/education_delete_modal.html" with education=education %}
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <p class="empty-state">
+                            Belum ada pendidikan yang ditambahkan.
+                        </p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}

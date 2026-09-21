@@ -35,3 +35,30 @@ class Project(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Education(models.Model):
+    DEGREE_CHOICES = [
+        ('sd', 'SD'),
+        ('smp', 'SMP'),
+        ('sma', 'SMA'),
+        ('sarjana', 'Sarjana (S1)'),
+        ('magister', 'Magister (S2)'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    institution = models.CharField(max_length=255)
+    degree = models.CharField(max_length=20, choices=DEGREE_CHOICES, default='sarjana')
+    major = models.CharField(max_length=255)
+    description = models.TextField()
+    start_year = models.PositiveIntegerField()
+    end_year = models.PositiveIntegerField(blank=True, null=True)
+    gpa = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.institution} ({self.get_degree_display()})"
+
+    @property
+    def is_ongoing(self):
+        return self.end_year is None
