@@ -4,12 +4,11 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{{ name }} - Portofolio</title>
+        <title>{% block title %}{{ name }} - Portofolio{% endblock title %}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Barriecito&family=Chivo:wght@400;600&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="/static/css/style.css">
-        {% block meta %} {% endblock meta %}
     </head>
 
     <body>
@@ -21,6 +20,7 @@
                     <a href="{% url 'main:show_main' %}#skills">Skills</a>
                     <a href="{% url 'main:show_projects' %}">Projects</a>
                     <a href="{% url 'main:show_experience' %}">Experience</a>
+                    <a href="{% url 'main:show_education' %}">Education</a>
                 </nav>
             </div>
         </header>
