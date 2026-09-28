@@ -1,11 +1,139 @@
 import json
 from decimal import Decimal
 
-from django.test import TestCase
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from main.models import Education, Experience, Project
+
+
+class AuthenticationTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="regular_user",
+            password="Strong-test-password-928!",
+        )
+
+    def test_register_creates_user_and_shows_success_message(self):
+        response = self.client.post(
+            reverse("main:register"),
+            {
+                "username": "new_user",
+                "password1": "Strong-test-password-928!",
+                "password2": "Strong-test-password-928!",
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("main:login"))
+        created_user = User.objects.get(username="new_user")
+        self.assertTrue(created_user.check_password("Strong-test-password-928!"))
+        self.assertContains(response, "Akun berhasil dibuat. Silakan login.")
+        self.assertContains(response, "Register")
+        self.assertNotContains(response, "nav-user")
+
+    def test_auth_pages_show_portfolio_owner_brand_and_titles(self):
+        register_response = self.client.get(reverse("main:register"))
+        login_response = self.client.get(reverse("main:login"))
+
+        self.assertContains(
+            register_response, "Register - Niccola Geraldo Winaryo Durand"
+        )
+        self.assertContains(register_response, "NicoGWD")
+        self.assertContains(login_response, "Login - Niccola Geraldo Winaryo Durand")
+        self.assertContains(login_response, "NicoGWD")
+
+    def test_register_rejects_mismatched_passwords(self):
+        response = self.client.post(
+            reverse("main:register"),
+            {
+                "username": "new_user",
+                "password1": "Strong-test-password-928!",
+                "password2": "Different-test-password-928!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("password2", response.context["form"].errors)
+        self.assertFalse(User.objects.filter(username="new_user").exists())
+
+    def test_register_rejects_duplicate_username(self):
+        response = self.client.post(
+            reverse("main:register"),
+            {
+                "username": "regular_user",
+                "password1": "Strong-test-password-928!",
+                "password2": "Strong-test-password-928!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("username", response.context["form"].errors)
+        self.assertEqual(User.objects.filter(username="regular_user").count(), 1)
+
+    def test_login_rejects_invalid_password(self):
+        response = self.client.post(
+            reverse("main:login"),
+            {"username": "regular_user", "password": "incorrect"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].non_field_errors())
+        self.assertNotIn("nav-user", response.content.decode())
+
+    def test_login_session_and_last_login_cookie_survive_navigation(self):
+        response = self.client.post(
+            reverse("main:login"),
+            {
+                "username": "regular_user",
+                "password": "Strong-test-password-928!",
+            },
+        )
+
+        self.assertRedirects(response, reverse("main:show_main"))
+        self.assertIn("sessionid", response.cookies)
+        self.assertIn("last_login", response.cookies)
+        last_login = response.cookies["last_login"].value
+        self.assertTrue(last_login)
+
+        for url_name in ("show_main", "show_experience", "show_projects"):
+            page = self.client.get(reverse(f"main:{url_name}"))
+            self.assertContains(page, "regular_user", html=False)
+            if url_name == "show_main":
+                self.assertContains(page, last_login)
+
+    def test_logout_clears_session_and_last_login_cookie(self):
+        self.client.login(
+            username="regular_user", password="Strong-test-password-928!"
+        )
+        self.client.cookies["last_login"] = "2026-09-28 12:00:00"
+
+        response = self.client.get(reverse("main:logout"))
+
+        self.assertRedirects(response, reverse("main:show_main"))
+        self.assertEqual(response.cookies["last_login"].value, "")
+        profile = self.client.get(reverse("main:show_main"))
+        self.assertContains(profile, "Login")
+        self.assertContains(profile, "Register")
+        self.assertNotContains(profile, "regular_user")
+
+    def test_auth_forms_use_csrf_and_reject_post_without_token(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        response = csrf_client.get(reverse("main:register"))
+
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        rejected = csrf_client.post(
+            reverse("main:register"),
+            {
+                "username": "new_user",
+                "password1": "Strong-test-password-928!",
+                "password2": "Strong-test-password-928!",
+            },
+        )
+        self.assertEqual(rejected.status_code, 403)
+        self.assertFalse(User.objects.filter(username="new_user").exists())
 
 
 class MainTest(TestCase):
@@ -71,6 +199,15 @@ class MainTest(TestCase):
 
 class ProjectTest(TestCase):
     def setUp(self):
+        self.owner = User.objects.create_superuser(
+            username="owner",
+            email="owner@example.com",
+            password="Strong-owner-password-928!",
+        )
+        self.regular_user = User.objects.create_user(
+            username="regular_user",
+            password="Strong-test-password-928!",
+        )
         self.project = Project.objects.create(
             title="Universitas Indonesia Depok",
             description="A Roblox experience recreating the UI Depok campus.",
@@ -114,9 +251,122 @@ class ProjectTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data[0]["fields"]["title"], self.project.title)
 
+    def test_project_controls_are_visible_only_to_owner(self):
+        projects_url = reverse("main:show_projects")
+        add_url = reverse("main:create_project")
+        delete_url = reverse("main:delete_project", args=[self.project.id])
+
+        response = self.client.get(projects_url)
+        self.assertNotContains(response, add_url)
+        self.assertNotContains(response, delete_url)
+        self.assertContains(response, "Star")
+
+        self.client.force_login(self.regular_user)
+        response = self.client.get(projects_url)
+        self.assertNotContains(response, add_url)
+        self.assertNotContains(response, delete_url)
+
+        self.client.force_login(self.owner)
+        response = self.client.get(projects_url)
+        self.assertContains(response, add_url)
+        self.assertContains(response, delete_url)
+
+    def test_project_create_and_delete_are_owner_only(self):
+        add_url = reverse("main:create_project")
+        delete_url = reverse("main:delete_project", args=[self.project.id])
+        project_data = {
+            "title": "New test project",
+            "description": "Created by the owner.",
+            "tech_stack": "Django",
+            "project_url": "",
+            "project_image_url": "",
+        }
+
+        anonymous_response = self.client.post(delete_url)
+        self.assertEqual(anonymous_response.status_code, 302)
+        self.assertTrue(Project.objects.filter(pk=self.project.id).exists())
+
+        self.client.force_login(self.regular_user)
+        self.assertEqual(self.client.get(add_url).status_code, 403)
+        self.assertEqual(self.client.post(add_url, project_data).status_code, 403)
+        self.assertEqual(self.client.post(delete_url).status_code, 403)
+        self.assertTrue(Project.objects.filter(pk=self.project.id).exists())
+        self.assertFalse(Project.objects.filter(title="New test project").exists())
+
+        self.client.force_login(self.owner)
+        created = self.client.post(add_url, project_data)
+        self.assertEqual(created.status_code, 302)
+        new_project = Project.objects.get(title="New test project")
+
+        deleted = self.client.post(delete_url)
+        self.assertEqual(deleted.status_code, 302)
+        self.assertFalse(Project.objects.filter(pk=self.project.id).exists())
+        self.assertTrue(Project.objects.filter(pk=new_project.id).exists())
+
+    def test_logged_in_users_can_toggle_stars(self):
+        star_url = reverse("main:toggle_star", args=[self.project.id])
+
+        response = self.client.post(star_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(self.project.starred_by.exists())
+
+        self.client.force_login(self.regular_user)
+        response = self.client.post(star_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(self.project.starred_by.filter(pk=self.regular_user.pk).exists())
+
+        self.client.post(star_url)
+        self.assertFalse(self.project.starred_by.filter(pk=self.regular_user.pk).exists())
+
+    def test_project_json_uses_starrer_natural_keys(self):
+        self.project.starred_by.add(self.regular_user)
+
+        response = self.client.get(reverse("main:get_projects_json"))
+
+        data = json.loads(response.content)
+        self.assertIn(["regular_user"], data[0]["fields"]["starred_by"])
+
+    def test_project_mutation_forms_require_csrf_tokens(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.owner)
+        add_url = reverse("main:create_project")
+        response = csrf_client.get(add_url)
+
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        rejected_add = csrf_client.post(
+            add_url,
+            {
+                "title": "CSRF project",
+                "description": "Must not be created without a token.",
+                "tech_stack": "Django",
+                "project_url": "",
+                "project_image_url": "",
+            },
+        )
+        self.assertEqual(rejected_add.status_code, 403)
+        self.assertFalse(Project.objects.filter(title="CSRF project").exists())
+
+        csrf_client.force_login(self.regular_user)
+        response = csrf_client.get(reverse("main:show_projects"))
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        rejected_star = csrf_client.post(
+            reverse("main:toggle_star", args=[self.project.id])
+        )
+        self.assertEqual(rejected_star.status_code, 403)
+        self.assertFalse(self.project.starred_by.exists())
+
 
 class EducationTest(TestCase):
     def setUp(self):
+        self.owner = User.objects.create_superuser(
+            username="education_owner",
+            email="education-owner@example.com",
+            password="Strong-owner-password-928!",
+        )
+        self.regular_user = User.objects.create_user(
+            username="education_user",
+            password="Strong-test-password-928!",
+        )
         self.education = Education.objects.create(
             institution="Universitas Indonesia",
             degree="sarjana",
@@ -140,6 +390,28 @@ class EducationTest(TestCase):
         self.assertContains(response, "Sarjana (S1)")
         self.assertContains(response, "Ongoing")
         self.assertContains(response, "3.75")
+        self.assertNotContains(response, reverse("main:create_education"))
+        self.assertNotContains(
+            response, reverse("main:update_education", args=[self.education.id])
+        )
+
+    def test_education_controls_are_visible_to_owner_only(self):
+        education_url = reverse("main:show_education")
+        create_url = reverse("main:create_education")
+        update_url = reverse("main:update_education", args=[self.education.id])
+        delete_url = reverse("main:delete_education", args=[self.education.id])
+
+        self.client.force_login(self.regular_user)
+        response = self.client.get(education_url)
+        self.assertNotContains(response, create_url)
+        self.assertNotContains(response, update_url)
+        self.assertNotContains(response, delete_url)
+
+        self.client.force_login(self.owner)
+        response = self.client.get(education_url)
+        self.assertContains(response, create_url)
+        self.assertContains(response, update_url)
+        self.assertContains(response, delete_url)
 
     def test_empty_education_page(self):
         Education.objects.all().delete()
@@ -148,12 +420,14 @@ class EducationTest(TestCase):
         self.assertContains(response, "Belum ada pendidikan yang ditambahkan.")
 
     def test_create_education_form_page(self):
+        self.client.force_login(self.owner)
         response = self.client.get(reverse("main:create_education"))
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "education_form.html")
 
     def test_create_education(self):
+        self.client.force_login(self.owner)
         response = self.client.post(
             reverse("main:create_education"),
             {
@@ -177,6 +451,7 @@ class EducationTest(TestCase):
         self.assertFalse(education.is_ongoing)
 
     def test_update_education_page_shows_existing_data(self):
+        self.client.force_login(self.owner)
         response = self.client.get(
             reverse("main:update_education", args=[self.education.id])
         )
@@ -187,6 +462,7 @@ class EducationTest(TestCase):
         self.assertContains(response, self.education.major)
 
     def test_update_education(self):
+        self.client.force_login(self.owner)
         response = self.client.post(
             reverse("main:update_education", args=[self.education.id]),
             {
@@ -208,12 +484,44 @@ class EducationTest(TestCase):
         self.assertTrue(self.education.is_ongoing)
 
     def test_delete_education(self):
+        self.client.force_login(self.owner)
         response = self.client.post(
             reverse("main:delete_education", args=[self.education.id])
         )
 
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Education.objects.filter(pk=self.education.id).exists())
+
+    def test_education_mutations_reject_anonymous_and_regular_users(self):
+        create_url = reverse("main:create_education")
+        update_url = reverse("main:update_education", args=[self.education.id])
+        delete_url = reverse("main:delete_education", args=[self.education.id])
+        data = {
+            "institution": "New School",
+            "degree": "sma",
+            "major": "Science",
+            "description": "Test education.",
+            "start_year": 2020,
+            "end_year": 2023,
+            "gpa": "",
+        }
+
+        response = self.client.post(create_url, data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
+        self.assertFalse(Education.objects.filter(institution="New School").exists())
+        self.assertEqual(self.client.get(update_url).status_code, 302)
+        self.assertEqual(self.client.post(delete_url).status_code, 302)
+        self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
+
+        self.client.force_login(self.regular_user)
+        self.assertEqual(self.client.get(create_url).status_code, 403)
+        self.assertEqual(self.client.post(create_url, data).status_code, 403)
+        self.assertEqual(self.client.get(update_url).status_code, 403)
+        self.assertEqual(self.client.post(update_url, data).status_code, 403)
+        self.assertEqual(self.client.post(delete_url).status_code, 403)
+        self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
+        self.assertFalse(Education.objects.filter(institution="New School").exists())
 
     def test_education_json_endpoint(self):
         response = self.client.get(reverse("main:get_education_json"))

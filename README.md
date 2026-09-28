@@ -22,10 +22,14 @@ Website portofolio pribadi dengan Django. Menampilkan profil dan bio, section Sk
    pip install -r requirements.txt
    ```
 
-3. Buat file .env di root project:
-    ```bash
+3. Buat file `.env` di root project untuk development:
+    ```dotenv
     PRODUCTION=False
+    DEBUG=True
+    DJANGO_SECRET_KEY=<secret-key-lokal>
     ```
+
+   Buat secret key lokal yang acak dan jangan commit file environment. Untuk production, atur `PRODUCTION=True`, `DEBUG=False`, `DJANGO_SECRET_KEY`, dan variabel database di environment hosting. Karena settings memilih `.env.prod` berdasarkan nilai `PRODUCTION` yang tersedia sebelum Django dimulai, hosting harus menyediakan `PRODUCTION=True` secara langsung; jangan mengandalkan file `.env.prod` yang di-ignore Git.
 
 4. Jalankan server:
 
@@ -63,6 +67,14 @@ Pada tugas ini saya menambahkan section **Education** dengan mekanisme form & da
 
 3. Alurnya: view mengambil QuerySet dari database, lalu `serializers.serialize("json", queryset)` mengubah objek model Python menjadi string JSON berisi array objek `{model, pk, fields}`, dan `HttpResponse` mengirim string tersebut dengan header `Content-Type: application/json`. Serialization diperlukan karena HTTP hanya mengirim bytes, sedangkan objek model Python berisi tipe data dalam bentuk *human readable* (UUID, Decimal, DateTime) yang tidak bisa dikirim langsung.
 
+### Tutorial 4
+
+1. Autentikasi mengenali pengguna, sedangkan otorisasi menentukan tindakan yang boleh dilakukan. Menyembunyikan kontrol di template membantu antarmuka, tetapi pemeriksaan izin tetap harus dilakukan di view.
+
+2. Django mempertahankan status login melalui session yang dikenali lewat cookie. Cookie `last_login` adalah informasi tambahan dan harus dibersihkan saat logout; form yang mengubah data tetap memerlukan perlindungan CSRF.
+
+3. Relasi many-to-many cocok untuk star karena satu pengguna dapat memberi star pada banyak proyek dan satu proyek dapat menerima star dari banyak pengguna.
+
 ## AI Disclosure
 
 Pengerjaan tugas ini dibantu oleh AI. 
@@ -72,6 +84,7 @@ Tool(s) yang digunakan:
 
 Model(s) yang digunakan:
 - **deepseek-v4-flash**
+- **openai/gpt-6-luna**
 
 Bagian yang dibantu:
 
@@ -80,5 +93,6 @@ Bagian yang dibantu:
 - Membantu menyusun dan memformat README.
 - Menyusun model `Education`, `EducationForm`, view create/update/delete/JSON, routing, dan template `education.html`/`education_form.html`.
 - Menulis test baru untuk section Education, endpoint JSON, dan pencarian Projects.
+- Meninjau konfigurasi secret key dan debug, menerapkan pemeriksaan akses owner untuk perubahan data, serta menambahkan test autentikasi, session, cookie, CSRF, dan star untuk Tutorial 4.
 
-Semua perubahan yang dilakukan oleh AI telah melewati proses review secara manual oleh saya.
+Perubahan yang dibantu AI telah diverifikasi dengan pengujian otomatis. Tinjauan akhir sebelum pengumpulan tetap menjadi tanggung jawab pemilik proyek.

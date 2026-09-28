@@ -83,12 +83,16 @@ def create_project(request):
 
     context = {
         "name": OWNER_NAME,
+        "nickname": OWNER_NICKNAME,
         "form": form,
     }
     return render(request, "projects_form.html", context)
 
-
+@login_required(login_url="/login/")
 def delete_project(request, project_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
     project = get_object_or_404(Project, pk=project_id)
 
     if request.method == "POST":
@@ -145,7 +149,11 @@ def show_education(request):
     return render(request, "education.html", context)
 
 
+@login_required(login_url="/login/")
 def create_education(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
     form = EducationForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -155,12 +163,17 @@ def create_education(request):
 
     context = {
         "name": OWNER_NAME,
+        "nickname": OWNER_NICKNAME,
         "form": form,
     }
     return render(request, "education_form.html", context)
 
 
+@login_required(login_url="/login/")
 def update_education(request, education_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
     education = get_object_or_404(Education, pk=education_id)
     form = EducationForm(request.POST or None, instance=education)
 
@@ -171,6 +184,7 @@ def update_education(request, education_id):
 
     context = {
         "name": OWNER_NAME,
+        "nickname": OWNER_NICKNAME,
         "form": form,
         "education": education,
         "is_update": True,
@@ -178,7 +192,11 @@ def update_education(request, education_id):
     return render(request, "education_form.html", context)
 
 
+@login_required(login_url="/login/")
 def delete_education(request, education_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
     education = get_object_or_404(Education, pk=education_id)
 
     if request.method == "POST":
@@ -206,7 +224,8 @@ def register(request):
         return redirect("main:login")
 
     context = {
-        "name": "Burhan",
+        "name": OWNER_NAME,
+        "nickname": OWNER_NICKNAME,
         "form": form,
     }
     return render(request, "register.html", context)
@@ -223,7 +242,8 @@ def login_user(request):
         return response
 
     context = {
-        "name": "Burhan",
+        "name": OWNER_NAME,
+        "nickname": OWNER_NICKNAME,
         "form": form,
     }
     return render(request, "login.html", context)

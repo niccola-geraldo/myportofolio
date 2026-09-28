@@ -7,11 +7,13 @@
                 <p class="section-kicker">Riwayat pendidikan saya</p>
                 <div class="education-header">
                     <h1>Education</h1>
-                    <a href="{% url 'main:create_education' %}"
-                       class="button education-add-button">
-                        <span aria-hidden="true">+</span>
-                        Tambah Pendidikan
-                    </a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'main:create_education' %}"
+                           class="button education-add-button">
+                            <span aria-hidden="true">+</span>
+                            Tambah Pendidikan
+                        </a>
+                    {% endif %}
                 </div>
                 <div class="experience-grid education-grid">
                     {% for education in education_list %}
@@ -38,13 +40,15 @@
                             {% if education.gpa %}
                                 <p class="education-gpa">GPA: {{ education.gpa }}</p>
                             {% endif %}
-                            <div class="education-card-actions">
-                                <div class="education-actions">
-                                    <a href="{% url 'main:update_education' education.id %}"
-                                       class="button button-secondary">Edit</a>
-                                    {% include "components/education_delete_modal.html" with education=education %}
+                            {% if user.is_superuser %}
+                                <div class="education-card-actions">
+                                    <div class="education-actions">
+                                        <a href="{% url 'main:update_education' education.id %}"
+                                           class="button button-secondary">Edit</a>
+                                        {% include "components/education_delete_modal.html" with education=education %}
+                                    </div>
                                 </div>
-                            </div>
+                            {% endif %}
                         </article>
                     {% empty %}
                         <p class="empty-state">
