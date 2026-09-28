@@ -40,12 +40,14 @@
                             {% if education.gpa %}
                                 <p class="education-gpa">GPA: {{ education.gpa }}</p>
                             {% endif %}
-                            {% if user.is_superuser %}
+                            {% if user.is_superuser or is_editor %}
                                 <div class="education-card-actions">
                                     <div class="education-actions">
                                         <a href="{% url 'main:update_education' education.id %}"
                                            class="button button-secondary">Edit</a>
-                                        {% include "components/education_delete_modal.html" with education=education %}
+                                        {% if user.is_superuser %}
+                                            {% include "components/education_delete_modal.html" with education=education %}
+                                        {% endif %}
                                     </div>
                                 </div>
                             {% endif %}

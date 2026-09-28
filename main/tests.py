@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -208,6 +208,11 @@ class ProjectTest(TestCase):
             username="regular_user",
             password="Strong-test-password-928!",
         )
+        self.editor = User.objects.create_user(
+            username="project_editor",
+            password="Strong-editor-password-928!",
+        )
+        self.editor.groups.add(Group.objects.create(name="Editor"))
         self.project = Project.objects.create(
             title="Universitas Indonesia Depok",
             description="A Roblox experience recreating the UI Depok campus.",
@@ -251,24 +256,34 @@ class ProjectTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data[0]["fields"]["title"], self.project.title)
 
-    def test_project_controls_are_visible_only_to_owner(self):
+    def test_project_controls_follow_role_permissions(self):
         projects_url = reverse("main:show_projects")
         add_url = reverse("main:create_project")
+        update_url = reverse("main:update_project", args=[self.project.id])
         delete_url = reverse("main:delete_project", args=[self.project.id])
 
         response = self.client.get(projects_url)
         self.assertNotContains(response, add_url)
+        self.assertNotContains(response, update_url)
         self.assertNotContains(response, delete_url)
         self.assertContains(response, "Star")
 
         self.client.force_login(self.regular_user)
         response = self.client.get(projects_url)
         self.assertNotContains(response, add_url)
+        self.assertNotContains(response, update_url)
+        self.assertNotContains(response, delete_url)
+
+        self.client.force_login(self.editor)
+        response = self.client.get(projects_url)
+        self.assertNotContains(response, add_url)
+        self.assertContains(response, update_url)
         self.assertNotContains(response, delete_url)
 
         self.client.force_login(self.owner)
         response = self.client.get(projects_url)
         self.assertContains(response, add_url)
+        self.assertContains(response, update_url)
         self.assertContains(response, delete_url)
 
     def test_project_create_and_delete_are_owner_only(self):
@@ -298,10 +313,48 @@ class ProjectTest(TestCase):
         self.assertEqual(created.status_code, 302)
         new_project = Project.objects.get(title="New test project")
 
+        updated = self.client.post(
+            reverse("main:update_project", args=[new_project.id]),
+            {
+                **project_data,
+                "title": "Owner updated project",
+            },
+        )
+        self.assertEqual(updated.status_code, 302)
+        new_project.refresh_from_db()
+        self.assertEqual(new_project.title, "Owner updated project")
+
         deleted = self.client.post(delete_url)
         self.assertEqual(deleted.status_code, 302)
         self.assertFalse(Project.objects.filter(pk=self.project.id).exists())
         self.assertTrue(Project.objects.filter(pk=new_project.id).exists())
+
+    def test_editor_can_update_projects_but_cannot_create_or_delete(self):
+        update_url = reverse("main:update_project", args=[self.project.id])
+        create_url = reverse("main:create_project")
+        delete_url = reverse("main:delete_project", args=[self.project.id])
+        updated_data = {
+            "title": "Updated project title",
+            "description": "Updated by the editor.",
+            "tech_stack": "Django",
+            "project_url": "",
+            "project_image_url": "",
+        }
+
+        self.assertEqual(self.client.get(update_url).status_code, 302)
+        self.client.force_login(self.regular_user)
+        self.assertEqual(self.client.get(update_url).status_code, 403)
+        self.assertEqual(self.client.post(update_url, updated_data).status_code, 403)
+
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.get(update_url).status_code, 200)
+        self.assertEqual(self.client.post(update_url, updated_data).status_code, 302)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.title, "Updated project title")
+        self.assertEqual(self.client.get(create_url).status_code, 403)
+        self.assertEqual(self.client.post(create_url, updated_data).status_code, 403)
+        self.assertEqual(self.client.post(delete_url).status_code, 403)
+        self.assertTrue(Project.objects.filter(pk=self.project.id).exists())
 
     def test_logged_in_users_can_toggle_stars(self):
         star_url = reverse("main:toggle_star", args=[self.project.id])
@@ -311,6 +364,7 @@ class ProjectTest(TestCase):
         self.assertFalse(self.project.starred_by.exists())
 
         self.client.force_login(self.regular_user)
+        self.assertEqual(self.client.get(star_url).status_code, 405)
         response = self.client.post(star_url)
         self.assertEqual(response.status_code, 302)
         self.assertTrue(self.project.starred_by.filter(pk=self.regular_user.pk).exists())
@@ -325,6 +379,7 @@ class ProjectTest(TestCase):
 
         data = json.loads(response.content)
         self.assertIn(["regular_user"], data[0]["fields"]["starred_by"])
+        self.assertNotIn("password", data[0]["fields"])
 
     def test_project_mutation_forms_require_csrf_tokens(self):
         csrf_client = Client(enforce_csrf_checks=True)
@@ -367,6 +422,11 @@ class EducationTest(TestCase):
             username="education_user",
             password="Strong-test-password-928!",
         )
+        self.editor = User.objects.create_user(
+            username="education_editor",
+            password="Strong-editor-password-928!",
+        )
+        self.editor.groups.add(Group.objects.create(name="Editor"))
         self.education = Education.objects.create(
             institution="Universitas Indonesia",
             degree="sarjana",
@@ -395,7 +455,7 @@ class EducationTest(TestCase):
             response, reverse("main:update_education", args=[self.education.id])
         )
 
-    def test_education_controls_are_visible_to_owner_only(self):
+    def test_education_controls_follow_role_permissions(self):
         education_url = reverse("main:show_education")
         create_url = reverse("main:create_education")
         update_url = reverse("main:update_education", args=[self.education.id])
@@ -405,6 +465,12 @@ class EducationTest(TestCase):
         response = self.client.get(education_url)
         self.assertNotContains(response, create_url)
         self.assertNotContains(response, update_url)
+        self.assertNotContains(response, delete_url)
+
+        self.client.force_login(self.editor)
+        response = self.client.get(education_url)
+        self.assertNotContains(response, create_url)
+        self.assertContains(response, update_url)
         self.assertNotContains(response, delete_url)
 
         self.client.force_login(self.owner)
@@ -510,9 +576,6 @@ class EducationTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
         self.assertFalse(Education.objects.filter(institution="New School").exists())
-        self.assertEqual(self.client.get(update_url).status_code, 302)
-        self.assertEqual(self.client.post(delete_url).status_code, 302)
-        self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
 
         self.client.force_login(self.regular_user)
         self.assertEqual(self.client.get(create_url).status_code, 403)
@@ -523,6 +586,30 @@ class EducationTest(TestCase):
         self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
         self.assertFalse(Education.objects.filter(institution="New School").exists())
 
+    def test_editor_can_update_education_but_cannot_create_or_delete(self):
+        create_url = reverse("main:create_education")
+        update_url = reverse("main:update_education", args=[self.education.id])
+        delete_url = reverse("main:delete_education", args=[self.education.id])
+        update_data = {
+            "institution": self.education.institution,
+            "degree": "sarjana",
+            "major": "Sistem Informasi",
+            "description": "Updated by an editor.",
+            "start_year": 2025,
+            "end_year": "",
+            "gpa": "3.90",
+        }
+
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.get(update_url).status_code, 200)
+        self.assertEqual(self.client.post(update_url, update_data).status_code, 302)
+        self.education.refresh_from_db()
+        self.assertEqual(self.education.major, "Sistem Informasi")
+        self.assertEqual(self.client.get(create_url).status_code, 403)
+        self.assertEqual(self.client.post(create_url, update_data).status_code, 403)
+        self.assertEqual(self.client.post(delete_url).status_code, 403)
+        self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
+
     def test_education_json_endpoint(self):
         response = self.client.get(reverse("main:get_education_json"))
 
@@ -531,3 +618,145 @@ class EducationTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data[0]["fields"]["institution"], self.education.institution)
         self.assertEqual(data[0]["fields"]["degree"], self.education.degree)
+
+
+class ExperienceTest(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_superuser(
+            username="experience_owner",
+            email="experience-owner@example.com",
+            password="Strong-owner-password-928!",
+        )
+        self.regular_user = User.objects.create_user(
+            username="experience_user",
+            password="Strong-test-password-928!",
+        )
+        self.editor = User.objects.create_user(
+            username="experience_editor",
+            password="Strong-editor-password-928!",
+        )
+        self.editor.groups.add(Group.objects.create(name="Editor"))
+        self.experience = Experience.objects.create(
+            title="Research Assistant",
+            description="Assisted with a research project.",
+            category="research",
+        )
+
+    def test_experience_controls_follow_role_permissions(self):
+        experience_url = reverse("main:show_experience")
+        create_url = reverse("main:create_experience")
+        update_url = reverse("main:update_experience", args=[self.experience.id])
+        delete_url = reverse("main:delete_experience", args=[self.experience.id])
+
+        response = self.client.get(experience_url)
+        self.assertNotContains(response, create_url)
+        self.assertNotContains(response, update_url)
+        self.assertNotContains(response, delete_url)
+
+        self.client.force_login(self.regular_user)
+        response = self.client.get(experience_url)
+        self.assertNotContains(response, create_url)
+        self.assertNotContains(response, update_url)
+        self.assertNotContains(response, delete_url)
+
+        self.client.force_login(self.editor)
+        response = self.client.get(experience_url)
+        self.assertNotContains(response, create_url)
+        self.assertContains(response, update_url)
+        self.assertNotContains(response, delete_url)
+
+        self.client.force_login(self.owner)
+        response = self.client.get(experience_url)
+        self.assertContains(response, create_url)
+        self.assertContains(response, update_url)
+        self.assertContains(response, delete_url)
+
+    def test_editor_can_update_experience_but_cannot_create_or_delete(self):
+        create_url = reverse("main:create_experience")
+        update_url = reverse("main:update_experience", args=[self.experience.id])
+        delete_url = reverse("main:delete_experience", args=[self.experience.id])
+        update_data = {
+            "title": "Updated Research Assistant",
+            "description": "Updated by the editor.",
+            "category": "research",
+            "thumbnail": "",
+            "ended_at": "",
+        }
+
+        self.assertEqual(self.client.get(update_url).status_code, 302)
+        self.client.force_login(self.regular_user)
+        self.assertEqual(self.client.get(update_url).status_code, 403)
+        self.assertEqual(self.client.post(update_url, update_data).status_code, 403)
+
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.get(update_url).status_code, 200)
+        self.assertEqual(self.client.post(update_url, update_data).status_code, 302)
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Updated Research Assistant")
+        self.assertEqual(self.client.get(create_url).status_code, 403)
+        self.assertEqual(self.client.post(create_url, update_data).status_code, 403)
+        self.assertEqual(self.client.post(delete_url).status_code, 403)
+        self.assertTrue(Experience.objects.filter(pk=self.experience.id).exists())
+
+    def test_owner_can_create_update_and_delete_experience(self):
+        create_url = reverse("main:create_experience")
+        update_url = reverse("main:update_experience", args=[self.experience.id])
+        delete_url = reverse("main:delete_experience", args=[self.experience.id])
+        self.client.force_login(self.owner)
+
+        created = self.client.post(
+            create_url,
+            {
+                "title": "Teaching Assistant",
+                "description": "Helped students.",
+                "category": "volunteer",
+                "thumbnail": "",
+                "ended_at": "",
+            },
+        )
+        self.assertEqual(created.status_code, 302)
+        self.assertTrue(Experience.objects.filter(title="Teaching Assistant").exists())
+
+        updated = self.client.post(
+            update_url,
+            {
+                "title": "Owner Updated Experience",
+                "description": "Updated by the owner.",
+                "category": "research",
+                "thumbnail": "",
+                "ended_at": "",
+            },
+        )
+        self.assertEqual(updated.status_code, 302)
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Owner Updated Experience")
+
+        deleted = self.client.post(delete_url)
+        self.assertEqual(deleted.status_code, 302)
+        self.assertFalse(Experience.objects.filter(pk=self.experience.id).exists())
+
+    def test_experience_mutations_require_csrf_and_delete_requires_post(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.owner)
+        create_url = reverse("main:create_experience")
+        response = client.get(create_url)
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+
+        rejected = client.post(
+            create_url,
+            {
+                "title": "CSRF blocked",
+                "description": "Should not be created.",
+                "category": "research",
+                "thumbnail": "",
+                "ended_at": "",
+            },
+        )
+        self.assertEqual(rejected.status_code, 403)
+        self.assertFalse(Experience.objects.filter(title="CSRF blocked").exists())
+        self.assertEqual(
+            client.get(
+                reverse("main:delete_experience", args=[self.experience.id])
+            ).status_code,
+            405,
+        )

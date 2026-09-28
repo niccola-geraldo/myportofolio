@@ -40,6 +40,14 @@ Website portofolio pribadi dengan Django. Menampilkan profil dan bio, section Sk
 
 5. Buka `http://127.0.0.1:8000/` di browser.
 
+## Mengatur Editor
+
+1. Login ke `/admin` menggunakan akun superuser.
+2. Buat group dengan nama persis `Editor` pada bagian Groups.
+3. Tambahkan pengguna yang diizinkan mengedit ke group tersebut.
+
+Editor dapat mengubah Projects, Experience, dan Education, tetapi hanya superuser yang dapat menambah atau menghapus data.
+
 ## Refleksi
 ### Tugas 1
 
@@ -94,5 +102,8 @@ Bagian yang dibantu:
 - Menyusun model `Education`, `EducationForm`, view create/update/delete/JSON, routing, dan template `education.html`/`education_form.html`.
 - Menulis test baru untuk section Education, endpoint JSON, dan pencarian Projects.
 - Meninjau konfigurasi secret key dan debug, menerapkan pemeriksaan akses owner untuk perubahan data, serta menambahkan test autentikasi, session, cookie, CSRF, dan star untuk Tutorial 4.
+- Menerapkan peran Editor dan aturan akses untuk Projects, Experience, dan Education, termasuk form CRUD/pembaruan yang diperlukan serta pengujian otorisasi untuk Individual Assignment 4.
+
+Strategi prompting: memberikan spesifikasi tugas dan konteks kode yang relevan, meminta AI memeriksa pola proyek sebelum menyarankan perubahan, lalu memverifikasi implementasi dengan pengujian Django dan meninjau perubahan secara manual. AI digunakan untuk membantu implementasi dan pengujian; keputusan akhir serta tinjauan kode tetap dilakukan oleh pemilik proyek.
 
 Perubahan yang dibantu AI telah diverifikasi dengan pengujian otomatis. Tinjauan akhir sebelum pengumpulan tetap menjadi tanggung jawab pemilik proyek.

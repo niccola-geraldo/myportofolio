@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{% if is_update %}Edit{% else %}Add{% endif %} Project - {{ name }}{% endblock title %}
+{% block title %}{% if is_update %}Edit{% else %}Add{% endif %} Experience - {{ name }}{% endblock title %}
 {% block content %}
     <main>
         <section class="experience-section">
             <div class="container">
-                <h1>{% if is_update %}Edit Project{% else %}Add New Project{% endif %}</h1>
+                <h1>{% if is_update %}Edit Experience{% else %}Add Experience{% endif %}</h1>
                 <form method="post"
-                      action="{% if is_update %}{% url 'main:update_project' project.id %}{% else %}{% url 'main:create_project' %}{% endif %}"
+                      action="{% if is_update %}{% url 'main:update_experience' experience.id %}{% else %}{% url 'main:create_experience' %}{% endif %}"
                       class="project-form">
                     {% csrf_token %}
                     {% for field in form %}
@@ -18,8 +18,10 @@
                             {% endfor %}
                         </div>
                     {% endfor %}
-                    <button type="submit" class="button">{% if is_update %}Simpan Perubahan{% else %}Tambah Project{% endif %}</button>
-                    <a href="{% url 'main:show_projects' %}" class="button button-secondary">Batal</a>
+                    <button type="submit" class="button">
+                        {% if is_update %}Save Changes{% else %}Add Experience{% endif %}
+                    </button>
+                    <a href="{% url 'main:show_experience' %}" class="button button-secondary">Cancel</a>
                 </form>
             </div>
         </section>

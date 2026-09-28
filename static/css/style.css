@@ -612,7 +612,9 @@ h1, h2, h3, .brand {
     margin-top: 0;
 }
 
-.project-delete-modal, .education-delete-modal {
+.project-delete-modal,
+.education-delete-modal,
+.experience-delete-modal {
     display: none;
     position: fixed;
     inset: 0;
@@ -629,11 +631,15 @@ h1, h2, h3, .brand {
     justify-content: center;
 }
 
-.project-delete-modal:popover-open, .education-delete-modal:popover-open {
+.project-delete-modal:popover-open,
+.education-delete-modal:popover-open,
+.experience-delete-modal:popover-open {
     display: flex;
 }
 
-.project-delete-modal__backdrop, .education-delete-modal__backdrop {
+.project-delete-modal__backdrop,
+.education-delete-modal__backdrop,
+.experience-delete-modal__backdrop {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -644,7 +650,9 @@ h1, h2, h3, .brand {
     cursor: default;
 }
 
-.project-delete-modal__content, .education-delete-modal__content {
+.project-delete-modal__content,
+.education-delete-modal__content,
+.experience-delete-modal__content {
     position: relative;
     z-index: 1;
     width: min(100%, 480px);
@@ -655,7 +663,9 @@ h1, h2, h3, .brand {
     box-shadow: 0 1rem 3rem rgba(28, 25, 23, 0.22);
 }
 
-.project-delete-modal__content h2, .education-delete-modal__content h2 {
+.project-delete-modal__content h2,
+.education-delete-modal__content h2,
+.experience-delete-modal__content h2 {
     margin: 0 0 0.75rem;
     font-family:
         "Space Grotesk",
@@ -664,7 +674,9 @@ h1, h2, h3, .brand {
     font-size: 1.5rem;
 }
 
-.project-delete-modal__close, .education-delete-modal__close {
+.project-delete-modal__close,
+.education-delete-modal__close,
+.experience-delete-modal__close {
     position: absolute;
     top: 1rem;
     right: 1rem;
@@ -677,7 +689,9 @@ h1, h2, h3, .brand {
     cursor: pointer;
 }
 
-.project-delete-modal__actions, .education-delete-modal__actions {
+.project-delete-modal__actions,
+.education-delete-modal__actions,
+.experience-delete-modal__actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
