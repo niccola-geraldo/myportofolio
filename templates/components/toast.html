@@ -1,0 +1,14 @@
+{% load static %}
+<div id="toast-component"
+     class="toast-component toast-hidden"
+     popover="manual"
+     role="status"
+     aria-live="polite"
+     aria-atomic="true">
+    <div class="toast-content">
+        <h2 id="toast-title" class="toast-title"></h2>
+        <p id="toast-message" class="toast-message"></p>
+    </div>
+    <button type="button" class="toast-close" aria-label="Tutup notifikasi">×</button>
+</div>
+<script defer src="{% static 'js/toast.js' %}"></script>

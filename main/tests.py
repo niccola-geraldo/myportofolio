@@ -6,6 +6,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from main.forms import ProjectForm
 from main.models import Education, Experience, Project
 
 
@@ -229,24 +230,29 @@ class ProjectTest(TestCase):
     def test_projects_page_shows_model_data(self):
         response = self.client.get(reverse("main:show_projects"))
 
-        self.assertContains(response, self.project.title)
-        self.assertContains(response, self.project.description)
-        self.assertContains(response, self.project.tech_stack)
-        self.assertContains(response, self.project.project_url)
+        self.assertContains(response, 'id="projects-app"')
+        self.assertContains(response, 'id="project-grid"')
+        self.assertContains(response, "js/projects.js")
+        self.assertNotContains(response, self.project.title)
 
     def test_empty_projects_page(self):
         Project.objects.all().delete()
         response = self.client.get(reverse("main:show_projects"))
 
-        self.assertContains(response, "Belum ada proyek yang ditambahkan.")
+        self.assertContains(response, 'id="projects-empty"')
+        self.assertEqual(
+            json.loads(self.client.get(reverse("main:get_projects_json")).content), []
+        )
 
     def test_projects_search_filter(self):
-        matching = self.client.get(reverse("main:show_projects"), {"title": "Depok"})
-        self.assertContains(matching, self.project.title)
+        projects_url = reverse("main:show_projects")
+        matching_page = self.client.get(projects_url, {"title": "Depok"})
+        self.assertContains(matching_page, 'value="Depok"')
+        matching = self.client.get(reverse("main:get_projects_json"), {"title": "Depok"})
+        self.assertEqual(json.loads(matching.content)[0]["fields"]["title"], self.project.title)
 
-        not_matching = self.client.get(reverse("main:show_projects"), {"title": "zzz"})
-        self.assertNotContains(not_matching, self.project.title)
-        self.assertContains(not_matching, "Tidak ada proyek dengan nama tersebut.")
+        not_matching = self.client.get(reverse("main:get_projects_json"), {"title": "zzz"})
+        self.assertEqual(json.loads(not_matching.content), [])
 
     def test_projects_json_endpoint(self):
         response = self.client.get(reverse("main:get_projects_json"))
@@ -255,36 +261,36 @@ class ProjectTest(TestCase):
         self.assertEqual(response["Content-Type"], "application/json")
         data = json.loads(response.content)
         self.assertEqual(data[0]["fields"]["title"], self.project.title)
+        self.assertEqual(data[0]["pk"], str(self.project.pk))
+        self.assertEqual(data[0]["fields"]["star_count"], 0)
+        self.assertFalse(data[0]["fields"]["is_starred"])
+        self.assertEqual(data[0]["fields"]["starred_by_names"], "")
 
     def test_project_controls_follow_role_permissions(self):
         projects_url = reverse("main:show_projects")
-        add_url = reverse("main:create_project")
-        update_url = reverse("main:update_project", args=[self.project.id])
-        delete_url = reverse("main:delete_project", args=[self.project.id])
 
         response = self.client.get(projects_url)
-        self.assertNotContains(response, add_url)
-        self.assertNotContains(response, update_url)
-        self.assertNotContains(response, delete_url)
-        self.assertContains(response, "Star")
+        self.assertContains(response, 'data-is-superuser="false"')
+        self.assertContains(response, 'data-is-editor="false"')
+        self.assertNotContains(response, 'id="project-form"')
 
         self.client.force_login(self.regular_user)
         response = self.client.get(projects_url)
-        self.assertNotContains(response, add_url)
-        self.assertNotContains(response, update_url)
-        self.assertNotContains(response, delete_url)
+        self.assertContains(response, 'data-is-superuser="false"')
+        self.assertContains(response, 'data-is-editor="false"')
+        self.assertNotContains(response, 'id="project-form"')
 
         self.client.force_login(self.editor)
         response = self.client.get(projects_url)
-        self.assertNotContains(response, add_url)
-        self.assertContains(response, update_url)
-        self.assertNotContains(response, delete_url)
+        self.assertContains(response, 'data-is-superuser="false"')
+        self.assertContains(response, 'data-is-editor="true"')
+        self.assertNotContains(response, 'id="project-form"')
 
         self.client.force_login(self.owner)
         response = self.client.get(projects_url)
-        self.assertContains(response, add_url)
-        self.assertContains(response, update_url)
-        self.assertContains(response, delete_url)
+        self.assertContains(response, 'data-is-superuser="true"')
+        self.assertContains(response, 'id="project-form"')
+        self.assertContains(response, reverse("main:create_project_ajax"))
 
     def test_project_create_and_delete_are_owner_only(self):
         add_url = reverse("main:create_project")
@@ -372,14 +378,85 @@ class ProjectTest(TestCase):
         self.client.post(star_url)
         self.assertFalse(self.project.starred_by.filter(pk=self.regular_user.pk).exists())
 
-    def test_project_json_uses_starrer_natural_keys(self):
+    def test_project_json_includes_viewer_star_state_and_public_starrer_names(self):
         self.project.starred_by.add(self.regular_user)
 
         response = self.client.get(reverse("main:get_projects_json"))
+        anonymous_fields = json.loads(response.content)[0]["fields"]
+        self.assertEqual(anonymous_fields["star_count"], 1)
+        self.assertFalse(anonymous_fields["is_starred"])
+        self.assertEqual(anonymous_fields["starred_by_names"], "regular_user")
+        self.assertNotIn("password", anonymous_fields)
 
-        data = json.loads(response.content)
-        self.assertIn(["regular_user"], data[0]["fields"]["starred_by"])
-        self.assertNotIn("password", data[0]["fields"])
+        self.client.force_login(self.regular_user)
+        response = self.client.get(reverse("main:get_projects_json"))
+        self.assertTrue(json.loads(response.content)[0]["fields"]["is_starred"])
+
+        self.client.force_login(self.editor)
+        response = self.client.get(reverse("main:get_projects_json"))
+        self.assertFalse(json.loads(response.content)[0]["fields"]["is_starred"])
+
+    def test_ajax_project_creation_requires_superuser_and_returns_json(self):
+        endpoint = reverse("main:create_project_ajax")
+        project_data = {
+            "title": "AJAX project",
+            "description": "Created through fetch.",
+            "tech_stack": "Django, JavaScript",
+            "project_url": "",
+            "project_image_url": "",
+        }
+
+        self.assertEqual(self.client.get(endpoint).status_code, 405)
+        anonymous_response = self.client.post(endpoint, project_data)
+        self.assertEqual(anonymous_response.status_code, 403)
+        self.assertEqual(anonymous_response["Content-Type"], "application/json")
+
+        self.client.force_login(self.regular_user)
+        self.assertEqual(self.client.post(endpoint, project_data).status_code, 403)
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.post(endpoint, project_data).status_code, 403)
+        self.assertFalse(Project.objects.filter(title="AJAX project").exists())
+
+        self.client.force_login(self.owner)
+        created = self.client.post(endpoint, project_data)
+        self.assertEqual(created.status_code, 201)
+        response_data = json.loads(created.content)
+        self.assertEqual(response_data["message"], "Proyek berhasil ditambahkan.")
+        self.assertTrue(Project.objects.filter(pk=response_data["pk"]).exists())
+
+    def test_ajax_project_creation_returns_validation_errors(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("main:create_project_ajax"),
+            {
+                "title": "<img src=x onerror=alert(1)>",
+                "description": "A description",
+                "tech_stack": "Django",
+                "project_url": "",
+                "project_image_url": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("title", json.loads(response.content)["errors"])
+        self.assertFalse(Project.objects.filter(title__contains="img").exists())
+
+    def test_project_form_strips_html_from_text_fields(self):
+        form = ProjectForm(
+            {
+                "title": "<b>Safe title</b>",
+                "description": "<p>Safe description</p>",
+                "tech_stack": "<em>Django</em>",
+                "project_url": "",
+                "project_image_url": "",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        project = form.save()
+        self.assertEqual(project.title, "Safe title")
+        self.assertEqual(project.description, "Safe description")
+        self.assertEqual(project.tech_stack, "Django")
 
     def test_project_mutation_forms_require_csrf_tokens(self):
         csrf_client = Client(enforce_csrf_checks=True)
@@ -400,6 +477,24 @@ class ProjectTest(TestCase):
         )
         self.assertEqual(rejected_add.status_code, 403)
         self.assertFalse(Project.objects.filter(title="CSRF project").exists())
+
+        ajax_url = reverse("main:create_project_ajax")
+        ajax_data = {
+            "title": "CSRF AJAX project",
+            "description": "Must include a CSRF token.",
+            "tech_stack": "Django",
+            "project_url": "",
+            "project_image_url": "",
+        }
+        rejected_ajax = csrf_client.post(ajax_url, ajax_data)
+        self.assertEqual(rejected_ajax.status_code, 403)
+        token = csrf_client.cookies["csrftoken"].value
+        accepted_ajax = csrf_client.post(
+            ajax_url,
+            ajax_data,
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(accepted_ajax.status_code, 201)
 
         csrf_client.force_login(self.regular_user)
         response = csrf_client.get(reverse("main:show_projects"))

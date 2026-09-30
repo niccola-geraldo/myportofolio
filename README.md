@@ -83,6 +83,10 @@ Pada tugas ini saya menambahkan section **Education** dengan mekanisme form & da
 
 3. Relasi many-to-many cocok untuk star karena satu pengguna dapat memberi star pada banyak proyek dan satu proyek dapat menerima star dari banyak pengguna.
 
+### Tutorial 5
+
+Halaman Projects mengambil data secara asynchronous melalui Fetch API. Pencarian memakai debounce 300 ms dan pembatalan request sebelumnya agar hasil lama tidak menggantikan hasil terbaru. Penambahan proyek memakai modal dan endpoint JSON dengan validasi ModelForm serta CSRF. Kartu proyek dibuat dengan DOM API dan `textContent`, sementara URL gambar/tautan dibatasi ke HTTP(S), untuk menghindari XSS saat menampilkan data.
+
 ## AI Disclosure
 
 Pengerjaan tugas ini dibantu oleh AI. 
@@ -91,8 +95,7 @@ Tool(s) yang digunakan:
 - **DeepSeek Harness**
 
 Model(s) yang digunakan:
-- **deepseek-v4-flash**
-- **openai/gpt-6-luna**
+- **deepseek-v4.1-flash**
 
 Bagian yang dibantu:
 
@@ -103,7 +106,5 @@ Bagian yang dibantu:
 - Menulis test baru untuk section Education, endpoint JSON, dan pencarian Projects.
 - Meninjau konfigurasi secret key dan debug, menerapkan pemeriksaan akses owner untuk perubahan data, serta menambahkan test autentikasi, session, cookie, CSRF, dan star untuk Tutorial 4.
 - Menerapkan peran Editor dan aturan akses untuk Projects, Experience, dan Education, termasuk form CRUD/pembaruan yang diperlukan serta pengujian otorisasi untuk Individual Assignment 4.
-
-Strategi prompting: memberikan spesifikasi tugas dan konteks kode yang relevan, meminta AI memeriksa pola proyek sebelum menyarankan perubahan, lalu memverifikasi implementasi dengan pengujian Django dan meninjau perubahan secara manual. AI digunakan untuk membantu implementasi dan pengujian; keputusan akhir serta tinjauan kode tetap dilakukan oleh pemilik proyek.
 
 Perubahan yang dibantu AI telah diverifikasi dengan pengujian otomatis. Tinjauan akhir sebelum pengumpulan tetap menjadi tanggung jawab pemilik proyek.

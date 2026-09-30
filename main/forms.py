@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.forms import (
     DateTimeField,
     DateTimeInput,
@@ -8,6 +9,7 @@ from django.forms import (
     Textarea,
     URLInput,
 )
+from django.utils.html import strip_tags
 
 from main.models import Education, Experience, Project
 
@@ -86,6 +88,24 @@ class ProjectForm(ModelForm):
                 }
             ),
         }
+
+    def clean_title(self):
+        title = strip_tags(self.cleaned_data["title"]).strip()
+        if not title:
+            raise ValidationError("Nama proyek tidak boleh hanya berisi tag HTML.")
+        return title
+
+    def clean_description(self):
+        description = strip_tags(self.cleaned_data["description"]).strip()
+        if not description:
+            raise ValidationError("Deskripsi proyek tidak boleh kosong.")
+        return description
+
+    def clean_tech_stack(self):
+        tech_stack = strip_tags(self.cleaned_data["tech_stack"]).strip()
+        if not tech_stack:
+            raise ValidationError("Teknologi proyek tidak boleh kosong.")
+        return tech_stack
 
 class EducationForm(ModelForm):
     class Meta:
