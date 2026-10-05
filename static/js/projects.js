@@ -9,21 +9,11 @@ if (projectsApp) {
     const grid = document.getElementById("project-grid");
     const superuser = projectsApp.dataset.isSuperuser === "true";
     const editor = projectsApp.dataset.isEditor === "true";
-    const uuidPlaceholder = "00000000-0000-0000-0000-000000000000";
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const csrfInput = document.querySelector("#csrf-token-form input[name='csrfmiddlewaretoken']");
+    const { element, csrfToken, csrfField, endpointFor } =
+        globalThis.portfolioUtils;
     let searchDebounceTimer;
     let activeRequest;
     let requestSequence = 0;
-
-    function csrfToken() {
-        return csrfInput?.value ?? "";
-    }
-
-    function endpointFor(template, projectId) {
-        if (!uuidPattern.test(String(projectId))) return null;
-        return template.replace(uuidPlaceholder, encodeURIComponent(projectId));
-    }
 
     function safeHttpUrl(value) {
         if (!value) return null;
@@ -33,21 +23,6 @@ if (projectsApp) {
         } catch {
             return null;
         }
-    }
-
-    function element(tagName, className, text) {
-        const node = document.createElement(tagName);
-        if (className) node.className = className;
-        if (text !== undefined) node.textContent = String(text ?? "");
-        return node;
-    }
-
-    function csrfField() {
-        const input = element("input");
-        input.type = "hidden";
-        input.name = "csrfmiddlewaretoken";
-        input.value = csrfToken();
-        return input;
     }
 
     function buildStarForm(project) {
