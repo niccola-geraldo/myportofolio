@@ -6,7 +6,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from main.forms import ProjectForm
+from main.forms import EducationForm, ProjectForm
 from main.models import Education, Experience, Project
 
 
@@ -537,60 +537,53 @@ class EducationTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "education.html")
 
-    def test_education_page_shows_model_data(self):
+    def test_education_page_renders_ajax_skeleton(self):
         response = self.client.get(reverse("main:show_education"))
 
-        self.assertContains(response, self.education.institution)
-        self.assertContains(response, self.education.major)
-        self.assertContains(response, "Sarjana (S1)")
-        self.assertContains(response, "Ongoing")
-        self.assertContains(response, "3.75")
-        self.assertNotContains(response, reverse("main:create_education"))
-        self.assertNotContains(
-            response, reverse("main:update_education", args=[self.education.id])
-        )
+        self.assertContains(response, 'id="education-app"')
+        self.assertContains(response, 'id="education-grid"')
+        self.assertContains(response, "js/education.js")
+        self.assertNotContains(response, self.education.description)
 
     def test_education_controls_follow_role_permissions(self):
         education_url = reverse("main:show_education")
-        create_url = reverse("main:create_education")
-        update_url = reverse("main:update_education", args=[self.education.id])
-        delete_url = reverse("main:delete_education", args=[self.education.id])
+
+        response = self.client.get(education_url)
+        self.assertContains(response, 'data-is-superuser="false"')
+        self.assertContains(response, 'data-is-editor="false"')
+        self.assertNotContains(response, 'id="education-form"')
 
         self.client.force_login(self.regular_user)
         response = self.client.get(education_url)
-        self.assertNotContains(response, create_url)
-        self.assertNotContains(response, update_url)
-        self.assertNotContains(response, delete_url)
+        self.assertContains(response, 'data-is-superuser="false"')
+        self.assertContains(response, 'data-is-editor="false"')
+        self.assertNotContains(response, 'id="education-form"')
 
         self.client.force_login(self.editor)
         response = self.client.get(education_url)
-        self.assertNotContains(response, create_url)
-        self.assertContains(response, update_url)
-        self.assertNotContains(response, delete_url)
+        self.assertContains(response, 'data-is-superuser="false"')
+        self.assertContains(response, 'data-is-editor="true"')
+        self.assertNotContains(response, 'id="education-form"')
 
         self.client.force_login(self.owner)
         response = self.client.get(education_url)
-        self.assertContains(response, create_url)
-        self.assertContains(response, update_url)
-        self.assertContains(response, delete_url)
+        self.assertContains(response, 'data-is-superuser="true"')
+        self.assertContains(response, 'id="education-form"')
+        self.assertContains(response, reverse("main:create_education_ajax"))
 
     def test_empty_education_page(self):
         Education.objects.all().delete()
         response = self.client.get(reverse("main:show_education"))
 
-        self.assertContains(response, "Belum ada pendidikan yang ditambahkan.")
+        self.assertContains(response, 'id="education-empty"')
+        self.assertEqual(
+            json.loads(self.client.get(reverse("main:get_education_json")).content), []
+        )
 
-    def test_create_education_form_page(self):
-        self.client.force_login(self.owner)
-        response = self.client.get(reverse("main:create_education"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "education_form.html")
-
-    def test_create_education(self):
+    def test_create_education_via_ajax(self):
         self.client.force_login(self.owner)
         response = self.client.post(
-            reverse("main:create_education"),
+            reverse("main:create_education_ajax"),
             {
                 "institution": "SMA Negeri 1 Jakarta",
                 "degree": "sma",
@@ -602,14 +595,58 @@ class EducationTest(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 302)
-        education = Education.objects.get(institution="SMA Negeri 1 Jakarta")
+        self.assertEqual(response.status_code, 201)
+        response_data = json.loads(response.content)
+        self.assertEqual(response_data["message"], "Pendidikan berhasil ditambahkan.")
+        education = Education.objects.get(pk=response_data["pk"])
         self.assertEqual(education.degree, "sma")
         self.assertEqual(education.major, "IPA")
         self.assertEqual(education.start_year, 2022)
         self.assertEqual(education.end_year, 2025)
         self.assertIsNone(education.gpa)
         self.assertFalse(education.is_ongoing)
+
+    def test_ajax_education_creation_requires_superuser(self):
+        endpoint = reverse("main:create_education_ajax")
+        education_data = {
+            "institution": "AJAX School",
+            "degree": "sma",
+            "major": "Science",
+            "description": "Created through fetch.",
+            "start_year": 2020,
+            "end_year": 2023,
+            "gpa": "",
+        }
+
+        self.assertEqual(self.client.get(endpoint).status_code, 405)
+        anonymous_response = self.client.post(endpoint, education_data)
+        self.assertEqual(anonymous_response.status_code, 403)
+        self.assertEqual(anonymous_response["Content-Type"], "application/json")
+
+        self.client.force_login(self.regular_user)
+        self.assertEqual(self.client.post(endpoint, education_data).status_code, 403)
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.post(endpoint, education_data).status_code, 403)
+        self.assertFalse(Education.objects.filter(institution="AJAX School").exists())
+
+    def test_ajax_education_creation_returns_validation_errors(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("main:create_education_ajax"),
+            {
+                "institution": "<img src=x onerror=alert(1)>",
+                "degree": "sarjana",
+                "major": "Ilmu Komputer",
+                "description": "Deskripsi pendidikan.",
+                "start_year": 2025,
+                "end_year": "",
+                "gpa": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("institution", json.loads(response.content)["errors"])
+        self.assertFalse(Education.objects.filter(institution__contains="img").exists())
 
     def test_update_education_page_shows_existing_data(self):
         self.client.force_login(self.owner)
@@ -654,7 +691,7 @@ class EducationTest(TestCase):
         self.assertFalse(Education.objects.filter(pk=self.education.id).exists())
 
     def test_education_mutations_reject_anonymous_and_regular_users(self):
-        create_url = reverse("main:create_education")
+        create_url = reverse("main:create_education_ajax")
         update_url = reverse("main:update_education", args=[self.education.id])
         delete_url = reverse("main:delete_education", args=[self.education.id])
         data = {
@@ -668,12 +705,11 @@ class EducationTest(TestCase):
         }
 
         response = self.client.post(create_url, data)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
         self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
         self.assertFalse(Education.objects.filter(institution="New School").exists())
 
         self.client.force_login(self.regular_user)
-        self.assertEqual(self.client.get(create_url).status_code, 403)
         self.assertEqual(self.client.post(create_url, data).status_code, 403)
         self.assertEqual(self.client.get(update_url).status_code, 403)
         self.assertEqual(self.client.post(update_url, data).status_code, 403)
@@ -682,7 +718,7 @@ class EducationTest(TestCase):
         self.assertFalse(Education.objects.filter(institution="New School").exists())
 
     def test_editor_can_update_education_but_cannot_create_or_delete(self):
-        create_url = reverse("main:create_education")
+        create_url = reverse("main:create_education_ajax")
         update_url = reverse("main:update_education", args=[self.education.id])
         delete_url = reverse("main:delete_education", args=[self.education.id])
         update_data = {
@@ -700,7 +736,7 @@ class EducationTest(TestCase):
         self.assertEqual(self.client.post(update_url, update_data).status_code, 302)
         self.education.refresh_from_db()
         self.assertEqual(self.education.major, "Sistem Informasi")
-        self.assertEqual(self.client.get(create_url).status_code, 403)
+        self.assertEqual(self.client.get(create_url).status_code, 405)
         self.assertEqual(self.client.post(create_url, update_data).status_code, 403)
         self.assertEqual(self.client.post(delete_url).status_code, 403)
         self.assertTrue(Education.objects.filter(pk=self.education.id).exists())
@@ -711,8 +747,76 @@ class EducationTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/json")
         data = json.loads(response.content)
-        self.assertEqual(data[0]["fields"]["institution"], self.education.institution)
-        self.assertEqual(data[0]["fields"]["degree"], self.education.degree)
+        fields = data[0]["fields"]
+        self.assertEqual(data[0]["pk"], str(self.education.pk))
+        self.assertEqual(fields["institution"], self.education.institution)
+        self.assertEqual(fields["degree"], self.education.degree)
+        self.assertEqual(fields["degree_display"], "Sarjana (S1)")
+        self.assertEqual(fields["major"], self.education.major)
+        self.assertEqual(fields["start_year"], self.education.start_year)
+        self.assertIsNone(fields["end_year"])
+        self.assertTrue(fields["is_ongoing"])
+        self.assertEqual(fields["gpa"], "3.75")
+        self.assertNotIn("password", fields)
+
+    def test_education_search_filter(self):
+        matching = self.client.get(
+            reverse("main:get_education_json"), {"institution": "Indonesia"}
+        )
+        self.assertEqual(
+            json.loads(matching.content)[0]["fields"]["institution"],
+            self.education.institution,
+        )
+
+        not_matching = self.client.get(
+            reverse("main:get_education_json"), {"institution": "zzz"}
+        )
+        self.assertEqual(json.loads(not_matching.content), [])
+
+    def test_education_form_strips_html_from_text_fields(self):
+        form = EducationForm(
+            {
+                "institution": "<b>Universitas Indonesia</b>",
+                "degree": "sarjana",
+                "major": "<em>Ilmu Komputer</em>",
+                "description": "<p>Sedang menempuh pendidikan S1.</p>",
+                "start_year": 2025,
+                "end_year": "",
+                "gpa": "",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        education = form.save()
+        self.assertEqual(education.institution, "Universitas Indonesia")
+        self.assertEqual(education.major, "Ilmu Komputer")
+        self.assertEqual(education.description, "Sedang menempuh pendidikan S1.")
+
+    def test_education_mutation_forms_require_csrf_tokens(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.owner)
+        response = csrf_client.get(reverse("main:show_education"))
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+
+        ajax_url = reverse("main:create_education_ajax")
+        ajax_data = {
+            "institution": "CSRF School",
+            "degree": "sma",
+            "major": "Science",
+            "description": "Must include a CSRF token.",
+            "start_year": 2020,
+            "end_year": 2023,
+            "gpa": "",
+        }
+        rejected_ajax = csrf_client.post(ajax_url, ajax_data)
+        self.assertEqual(rejected_ajax.status_code, 403)
+        token = csrf_client.cookies["csrftoken"].value
+        accepted_ajax = csrf_client.post(
+            ajax_url,
+            ajax_data,
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(accepted_ajax.status_code, 201)
 
 
 class ExperienceTest(TestCase):

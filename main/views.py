@@ -249,40 +249,15 @@ def toggle_star(request, project_id):
 
 
 def show_education(request):
-    # Ambil data lewat endpoint JSON lalu deserialize menjadi objek model.
-    json_response = get_education_json(request)
-    education_list = [
-        entry.object
-        for entry in serializers.deserialize(
-            "json", json_response.content.decode("utf-8")
-        )
-    ]
-
     context = {
         "name": OWNER_NAME,
         "nickname": OWNER_NICKNAME,
-        "education_list": education_list,
         "is_editor": _is_editor(request.user),
     }
+    if request.user.is_superuser:
+        context["form"] = EducationForm()
+
     return render(request, "education.html", context)
-
-
-@login_required(login_url="main:login")
-def create_education(request):
-    _require_superuser(request)
-    form = EducationForm(request.POST or None)
-
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Pendidikan baru berhasil ditambahkan!")
-        return redirect("main:show_education")
-
-    context = {
-        "name": OWNER_NAME,
-        "nickname": OWNER_NICKNAME,
-        "form": form,
-    }
-    return render(request, "education_form.html", context)
 
 
 @login_required(login_url="main:login")
@@ -317,11 +292,52 @@ def delete_education(request, education_id):
 
 
 def get_education_json(request):
-    """Mengembalikan seluruh data Education dalam format JSON."""
-    education_json = serializers.serialize(
-        "json", Education.objects.all().order_by("start_year")
-    )
-    return HttpResponse(education_json, content_type="application/json")
+    """Mengembalikan data Education dalam format JSON."""
+    institution_query = request.GET.get("institution", "").strip()
+    educations = Education.objects.all().order_by("start_year")
+
+    if institution_query:
+        educations = educations.filter(institution__icontains=institution_query)
+
+    data = []
+    for education in educations:
+        data.append(
+            {
+                "pk": str(education.pk),
+                "fields": {
+                    "institution": education.institution,
+                    "degree": education.degree,
+                    "degree_display": education.get_degree_display(),
+                    "major": education.major,
+                    "description": education.description,
+                    "start_year": education.start_year,
+                    "end_year": education.end_year,
+                    "gpa": education.gpa,
+                    "is_ongoing": education.is_ongoing,
+                },
+            }
+        )
+
+    return JsonResponse(data, safe=False)
+
+
+@require_POST
+def create_education_ajax(request):
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"message": "Hanya pemilik portofolio yang dapat menambahkan pendidikan."},
+            status=403,
+        )
+
+    form = EducationForm(request.POST)
+    if form.is_valid():
+        education = form.save()
+        return JsonResponse(
+            {"message": "Pendidikan berhasil ditambahkan.", "pk": str(education.pk)},
+            status=201,
+        )
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
 
 
 def register(request):

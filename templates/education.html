@@ -1,64 +1,59 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Education - {{ name }}{% endblock title %}
 {% block content %}
-    <main>
+    <main id="education-app"
+          data-json-url="{% url 'main:get_education_json' %}"
+          data-create-url="{% url 'main:create_education_ajax' %}"
+          data-update-url-template="{% url 'main:update_education' '00000000-0000-0000-0000-000000000000' %}"
+          data-delete-url-template="{% url 'main:delete_education' '00000000-0000-0000-0000-000000000000' %}"
+          data-is-superuser="{{ user.is_superuser|yesno:'true,false' }}"
+          data-is-editor="{{ is_editor|yesno:'true,false' }}">
         <section class="experience-section" id="education">
             <div class="container">
                 <p class="section-kicker">Riwayat pendidikan saya</p>
                 <div class="education-header">
                     <h1>Education</h1>
                     {% if user.is_superuser %}
-                        <a href="{% url 'main:create_education' %}"
-                           class="button education-add-button">
+                        <button type="button"
+                                class="button education-add-button"
+                                popovertarget="add-education-modal">
                             <span aria-hidden="true">+</span>
                             Tambah Pendidikan
-                        </a>
+                        </button>
                     {% endif %}
                 </div>
-                <div class="experience-grid education-grid">
-                    {% for education in education_list %}
-                        <article class="experience-card">
-                            <span class="experience-category">{{ education.get_degree_display }}</span>
-                            <h2>{{ education.institution }}</h2>
-                            <p class="education-meta">
-                                <strong>{{ education.major }}</strong>
-                            </p>
-                            <p class="education-years">
-                                {{ education.start_year }} &mdash;
-                                {% if education.is_ongoing %}
-                                    Sekarang
-                                {% else %}
-                                    {{ education.end_year }}
-                                {% endif %}
-                            </p>
-                            {% if education.is_ongoing %}
-                                <p class="education-status">Ongoing</p>
-                            {% else %}
-                                <p class="education-status">Selesai</p>
-                            {% endif %}
-                            <p class="education-description">{{ education.description }}</p>
-                            {% if education.gpa %}
-                                <p class="education-gpa">GPA: {{ education.gpa }}</p>
-                            {% endif %}
-                            {% if user.is_superuser or is_editor %}
-                                <div class="education-card-actions">
-                                    <div class="education-actions">
-                                        <a href="{% url 'main:update_education' education.id %}"
-                                           class="button button-secondary">Edit</a>
-                                        {% if user.is_superuser %}
-                                            {% include "components/education_delete_modal.html" with education=education %}
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </article>
-                    {% empty %}
-                        <p class="empty-state">
-                            Belum ada pendidikan yang ditambahkan.
-                        </p>
-                    {% endfor %}
+
+                <form id="csrf-token-form" hidden>{% csrf_token %}</form>
+                <form id="education-search-form" class="education-search">
+                    <input type="search"
+                           id="education-search-input"
+                           name="institution"
+                           placeholder="Cari berdasarkan institusi"
+                           class="education-search__input"
+                           aria-label="Cari berdasarkan institusi">
+                    <button type="submit" class="button">Cari</button>
+                </form>
+
+                <p id="education-loading" class="empty-state hide" role="status">
+                    Memuat pendidikan...
+                </p>
+                <div id="education-error" class="empty-state hide" role="alert">
+                    <p>Gagal memuat pendidikan. Silakan coba lagi.</p>
+                    <button type="button" id="education-retry" class="button button-secondary">
+                        Coba Lagi
+                    </button>
                 </div>
+                <p id="education-empty" class="empty-state hide" role="status"></p>
+                <div id="education-grid" class="experience-grid education-grid hide"></div>
             </div>
         </section>
     </main>
+
+    {% if user.is_superuser %}
+        {% include "components/education_form_modal.html" %}
+    {% endif %}
 {% endblock content %}
+{% block scripts %}
+    <script defer src="{% static 'js/education.js' %}"></script>
+{% endblock scripts %}

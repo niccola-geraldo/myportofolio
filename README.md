@@ -87,6 +87,14 @@ Pada tugas ini saya menambahkan section **Education** dengan mekanisme form & da
 
 Halaman Projects mengambil data secara asynchronous melalui Fetch API. Pencarian memakai debounce 300 ms dan pembatalan request sebelumnya agar hasil lama tidak menggantikan hasil terbaru. Penambahan proyek memakai modal dan endpoint JSON dengan validasi ModelForm serta CSRF. Kartu proyek dibuat dengan DOM API dan `textContent`, sementara URL gambar/tautan dibatasi ke HTTP(S), untuk menghindari XSS saat menampilkan data.
 
+### Tugas 5
+
+1. _Debouncing_ adalah teknik menunda eksekusi sampai pengguna berhenti melakukan suatu aksi selama selang waktu tertentu (300 ms pada halaman Education). Pada pencarian AJAX, tanpa _debouncing_ setiap ketikan memicu permintaan baru sehingga server dibebani banyak request dan hasil pencarian lama berpotensi datang terlambat lalu menimpa hasil yang lebih baru. Dengan _debouncing_, permintaan hanya dikirim setelah pengguna berhenti mengetik; proyek ini juga membatalkan permintaan yang masih berjalan dengan `AbortController` agar hanya hasil terbaru yang ditampilkan.
+
+2. `await` membuat eksekusi fungsi `async` berhenti sejenak sampai Promise dari `fetch()` selesai dan menghasilkan objek `Response`, sehingga baris berikutnya dapat memeriksa `response.ok`, status HTTP, dan memanggil `response.json()` dengan benar. Tanpa `await`, yang diperoleh hanyalah Promise yang masih _pending_: `response.ok` tidak bernilai dan `response.json()` tidak bisa dipakai, sementara kode di bawahnya tetap berjalan sebelum data tiba sehingga urutan tampilan _loading_, render data, dan notifikasi menjadi kacau. Karena membaca body juga asinkron, `response.json()` juga harus di-`await`.
+
+3. XSS (_Cross-Site Scripting_) adalah serangan yang menyisipkan skrip berbahaya ke halaman yang dilihat pengguna lain, misalnya lewat data yang berisi `<img src="x" onerror="alert('XSS!')">`. Data yang ditampilkan melalui AJAX/JavaScript lebih rentan karena template Django otomatis meng-escape variabel `{{ }}`, sedangkan data JSON yang disisipkan ke DOM dengan `innerHTML` tidak di-escape sehingga tag dan atribut berbahaya ikut dieksekusi browser. Karena itu halaman Education membangun elemen dengan `document.createElement` dan `textContent` (bukan `innerHTML`), dan server tetap membersihkan input teks memakai `strip_tags` di `clean_<field>` pada `EducationForm`, sehingga payload XSS tampil sebagai teks biasa dan tidak dieksekusi.
+
 ## AI Disclosure
 
 Pengerjaan tugas ini dibantu oleh AI. 

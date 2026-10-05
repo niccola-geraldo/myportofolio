@@ -177,3 +177,21 @@ class EducationForm(ModelForm):
                 }
             ),
         }
+
+    def clean_institution(self):
+        institution = strip_tags(self.cleaned_data["institution"]).strip()
+        if not institution:
+            raise ValidationError("Institusi tidak boleh hanya berisi tag HTML.")
+        return institution
+
+    def clean_major(self):
+        major = strip_tags(self.cleaned_data["major"]).strip()
+        if not major:
+            raise ValidationError("Jurusan tidak boleh hanya berisi tag HTML.")
+        return major
+
+    def clean_description(self):
+        description = strip_tags(self.cleaned_data["description"]).strip()
+        if not description:
+            raise ValidationError("Deskripsi pendidikan tidak boleh kosong.")
+        return description
