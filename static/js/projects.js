@@ -9,8 +9,8 @@ if (projectsApp) {
     const grid = document.getElementById("project-grid");
     const superuser = projectsApp.dataset.isSuperuser === "true";
     const editor = projectsApp.dataset.isEditor === "true";
-    const { element, csrfToken, csrfField, endpointFor } =
-        globalThis.portfolioUtils;
+    const authenticated = projectsApp.dataset.isAuthenticated === "true";
+    const { element, csrfToken, endpointFor } = globalThis.portfolioUtils;
     let searchDebounceTimer;
     let activeRequest;
     let requestSequence = 0;
@@ -25,38 +25,71 @@ if (projectsApp) {
         }
     }
 
-    function buildStarForm(project) {
-        const form = element("form", "star-form");
-        form.method = "post";
-        form.action = endpointFor(projectsApp.dataset.starUrlTemplate, project.pk) ?? "";
-        form.append(csrfField());
+    function apiErrorMessage(data, status) {
+        const messages = Object.values(data ?? {})
+            .flat()
+            .filter((value) => typeof value === "string");
+        return messages.join(" ") || `Terjadi kesalahan (status ${status}).`;
+    }
+
+    async function writeProject(url, method, payload) {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                Accept: "application/json",
+                ...(payload === undefined
+                    ? {}
+                    : { "Content-Type": "application/json" }),
+                "X-CSRFToken": csrfToken(),
+            },
+            body: payload === undefined ? undefined : JSON.stringify(payload),
+        });
+
+        if (response.status === 204) return null;
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(apiErrorMessage(data, response.status));
+        return data;
+    }
+
+    function buildStar(project) {
+        if (!authenticated) {
+            const link = element(
+                "a",
+                "button",
+                `Login untuk star (${project.star_count})`,
+            );
+            link.href = projectsApp.dataset.loginUrl;
+            return link;
+        }
 
         const button = element(
             "button",
-            `button button-star${project.fields.is_starred ? " is-starred" : ""}`,
+            `button button-star${project.is_starred ? " is-starred" : ""}`,
         );
-        button.type = "submit";
-        button.title = project.fields.starred_by_names
-            ? `Dibintangi oleh ${project.fields.starred_by_names}`
+        button.type = "button";
+        button.dataset.action = "star";
+        button.dataset.id = project.id;
+        button.title = project.starred_by_names
+            ? `Dibintangi oleh ${project.starred_by_names}`
             : "Jadilah yang pertama memberi star";
 
         const star = element("span", "", "★");
         star.setAttribute("aria-hidden", "true");
         button.append(
             star,
-            document.createTextNode(project.fields.is_starred ? " Unstar " : " Star "),
+            document.createTextNode(project.is_starred ? " Unstar " : " Star "),
         );
-        button.append(element("span", "star-count", project.fields.star_count));
-        form.append(button);
-        return form;
+        button.append(element("span", "star-count", project.star_count));
+        return button;
     }
 
     function buildDeleteModal(project) {
-        const id = `delete-project-${project.pk}`;
+        const id = `delete-project-${project.id}`;
         const trigger = element("button", "button button-danger", "Hapus Proyek");
         trigger.type = "button";
         trigger.setAttribute("popovertarget", id);
-        trigger.setAttribute("aria-label", `Hapus ${project.fields.title}`);
+        trigger.setAttribute("aria-label", `Hapus ${project.title}`);
         trigger.title = "Hapus proyek";
 
         const modal = element("div", "project-delete-modal");
@@ -82,7 +115,7 @@ if (projectsApp) {
         const heading = element("h2", "", "Hapus Proyek?");
         heading.id = `${id}-title`;
         const prompt = element("p", "", "Apakah Anda yakin ingin menghapus ");
-        prompt.append(element("strong", "", project.fields.title), "?");
+        prompt.append(element("strong", "", project.title), "?");
 
         const actions = element("div", "project-delete-modal__actions");
         const cancel = element("button", "button button-secondary", "Batal");
@@ -90,49 +123,45 @@ if (projectsApp) {
         cancel.setAttribute("popovertarget", id);
         cancel.setAttribute("popovertargetaction", "hide");
 
-        const form = element("form");
-        form.method = "post";
-        form.action = endpointFor(projectsApp.dataset.deleteUrlTemplate, project.pk) ?? "";
-        form.append(csrfField());
-        const submit = element("button", "button button-danger", "Ya, Hapus");
-        submit.type = "submit";
-        form.append(submit);
+        const confirm = element("button", "button button-danger", "Ya, Hapus");
+        confirm.type = "button";
+        confirm.dataset.action = "delete";
+        confirm.dataset.id = project.id;
 
-        actions.append(cancel, form);
+        actions.append(cancel, confirm);
         content.append(close, heading, prompt, actions);
         modal.append(backdrop, content);
         return { trigger, modal };
     }
 
     function buildProjectCard(project) {
-        const fields = project.fields;
         const article = element("article", "experience-card");
-        const imageUrl = safeHttpUrl(fields.project_image_url);
+        const imageUrl = safeHttpUrl(project.project_image_url);
         if (imageUrl) {
             const image = element("img", "project-image");
             image.src = imageUrl;
-            image.alt = `Gambar ${fields.title}`;
+            image.alt = `Gambar ${project.title}`;
             article.append(image);
         }
 
         article.append(
-            element("h2", "", fields.title),
-            element("span", "experience-category", fields.tech_stack),
-            element("p", "experience-description", fields.description),
+            element("h2", "", project.title),
+            element("span", "experience-category", project.tech_stack),
+            element("p", "experience-description", project.description),
         );
 
         const cardActions = element("div", "project-card-actions");
         const actions = element("div", "project-actions");
-        const projectUrl = safeHttpUrl(fields.project_url);
+        const projectUrl = safeHttpUrl(project.project_url);
         if (projectUrl) {
             const link = element("a", "button", "Lihat Project");
             link.href = projectUrl;
             actions.append(link);
         }
-        actions.append(buildStarForm(project));
+        actions.append(buildStar(project));
 
         if (editor || superuser) {
-            const editUrl = endpointFor(projectsApp.dataset.updateUrlTemplate, project.pk);
+            const editUrl = endpointFor(projectsApp.dataset.updateUrlTemplate, project.id);
             if (editUrl) {
                 const edit = element("a", "button button-secondary", "Edit");
                 edit.href = editUrl;
@@ -165,7 +194,7 @@ if (projectsApp) {
         const sequence = ++requestSequence;
         displayState("loading");
 
-        const url = new URL(projectsApp.dataset.jsonUrl, window.location.href);
+        const url = new URL(projectsApp.dataset.listUrl, window.location.href);
         if (query) url.searchParams.set("title", query);
 
         try {
@@ -229,43 +258,62 @@ if (projectsApp) {
             submitButton.disabled = true;
 
             try {
-                const response = await fetch(projectForm.action, {
-                    method: "POST",
-                    headers: { "X-CSRFToken": csrfToken(), Accept: "application/json" },
-                    body: new FormData(projectForm),
-                });
-                const result = await response.json().catch(() => ({}));
-
-                if (response.ok) {
-                    projectForm.reset();
-                    document.getElementById("add-project-modal").hidePopover();
-                    globalThis.showToast("Berhasil", result.message, "success");
-                    fetchProjects(searchInput.value.trim());
-                    return;
-                }
-
-                const errors = result.errors
-                    ? Object.values(result.errors).flatMap((items) =>
-                          items.map((item) => item.message),
-                      )
-                    : [result.message ?? `Terjadi kesalahan (status ${response.status}).`];
-                globalThis.showToast(
-                    "Gagal menambahkan proyek",
-                    errors.join(" "),
-                    "error",
+                const fields = new FormData(projectForm);
+                const payload = Object.fromEntries(
+                    [
+                        "title",
+                        "description",
+                        "tech_stack",
+                        "project_url",
+                        "project_image_url",
+                    ].map((name) => [name, fields.get(name) ?? ""]),
                 );
+
+                await writeProject(projectsApp.dataset.listUrl, "POST", payload);
+                projectForm.reset();
+                document.getElementById("add-project-modal").hidePopover();
+                globalThis.showToast("Berhasil", "Proyek berhasil ditambahkan.", "success");
+                await fetchProjects(searchInput.value.trim());
             } catch (error) {
                 console.error("Error adding project:", error);
-                globalThis.showToast(
-                    "Gagal menambahkan proyek",
-                    "Tidak dapat terhubung ke server. Silakan coba lagi.",
-                    "error",
-                );
+                globalThis.showToast("Gagal menambahkan proyek", error.message, "error");
             } finally {
                 submitButton.disabled = false;
             }
         });
     }
+
+    grid.addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button || button.disabled) return;
+
+        const action = button.dataset.action;
+        const template =
+            action === "star"
+                ? projectsApp.dataset.starUrlTemplate
+                : projectsApp.dataset.detailUrlTemplate;
+        const url = endpointFor(template, button.dataset.id);
+        if (!url) return;
+
+        button.disabled = true;
+        try {
+            await writeProject(url, action === "star" ? "POST" : "DELETE");
+            if (action === "delete") button.closest("[popover]")?.hidePopover();
+            globalThis.showToast(
+                "Berhasil",
+                action === "star"
+                    ? "Status star berhasil diperbarui."
+                    : "Proyek berhasil dihapus.",
+                "success",
+            );
+            await fetchProjects(searchInput.value.trim());
+        } catch (error) {
+            console.error("Error updating project:", error);
+            globalThis.showToast("Permintaan gagal", error.message, "error");
+        } finally {
+            button.disabled = false;
+        }
+    });
 
     fetchProjects(searchInput.value.trim());
 }

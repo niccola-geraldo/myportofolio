@@ -290,7 +290,7 @@ class ProjectTest(TestCase):
         response = self.client.get(projects_url)
         self.assertContains(response, 'data-is-superuser="true"')
         self.assertContains(response, 'id="project-form"')
-        self.assertContains(response, reverse("main:create_project_ajax"))
+        self.assertContains(response, reverse("api:project-list"))
 
     def test_project_create_and_delete_are_owner_only(self):
         add_url = reverse("main:create_project")
