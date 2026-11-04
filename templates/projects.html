@@ -3,12 +3,14 @@
 {% block title %}Projects - {{ name }}{% endblock title %}
 {% block content %}
     <main id="projects-app"
-          data-json-url="{% url 'main:get_projects_json' %}"
-          data-star-url-template="{% url 'main:toggle_star' '00000000-0000-0000-0000-000000000000' %}"
+          data-list-url="{% url 'api:project-list' %}"
+          data-detail-url-template="{% url 'api:project-detail' '00000000-0000-0000-0000-000000000000' %}"
+          data-star-url-template="{% url 'api:project-star' '00000000-0000-0000-0000-000000000000' %}"
           data-update-url-template="{% url 'main:update_project' '00000000-0000-0000-0000-000000000000' %}"
-          data-delete-url-template="{% url 'main:delete_project' '00000000-0000-0000-0000-000000000000' %}"
+          data-login-url="{% url 'main:login' %}"
           data-is-superuser="{{ user.is_superuser|yesno:'true,false' }}"
-          data-is-editor="{{ is_editor|yesno:'true,false' }}">
+          data-is-editor="{{ is_editor|yesno:'true,false' }}"
+          data-is-authenticated="{{ user.is_authenticated|yesno:'true,false' }}">
         <section class="experience-section" id="experience">
             <div class="container">
                 <p class="section-kicker">Karya yang saya bangun</p>
