@@ -95,6 +95,16 @@ Halaman Projects mengambil data secara asynchronous melalui Fetch API. Pencarian
 
 3. XSS (_Cross-Site Scripting_) adalah serangan yang menyisipkan skrip berbahaya ke halaman yang dilihat pengguna lain, misalnya lewat data yang berisi `<img src="x" onerror="alert('XSS!')">`. Data yang ditampilkan melalui AJAX/JavaScript lebih rentan karena template Django otomatis meng-escape variabel `{{ }}`, sedangkan data JSON yang disisipkan ke DOM dengan `innerHTML` tidak di-escape sehingga tag dan atribut berbahaya ikut dieksekusi browser. Karena itu halaman Education membangun elemen dengan `document.createElement` dan `textContent` (bukan `innerHTML`), dan server tetap membersihkan input teks memakai `strip_tags` di `clean_<field>` pada `EducationForm`, sehingga payload XSS tampil sebagai teks biasa dan tidak dieksekusi.
 
+### Tugas 6
+
+1. REST adalah gaya arsitektur yang memodelkan data sebagai sumber daya dengan URI dan memakai antarmuka HTTP yang seragam serta permintaan yang berdiri sendiri. JSON hanya format representasi. API Education memakai URL sumber daya, metode HTTP sesuai tindakan, dan status seperti `201 Created` dan `204 No Content`. Gunakan `PUT` untuk mengirim ulang representasi lengkap yang dapat ditulis, misalnya saat mengganti seluruh isi entri pendidikan. Gunakan `PATCH` untuk mengubah sebagian field, misalnya hanya `major`.
+
+2. `EducationSerializer` mengubah model menjadi representasi API dan memvalidasi data sebelum menyimpannya. Daftar field eksplisit membatasi data yang ditampilkan, `validate_<field>` membersihkan teks, dan field seperti `star_count` serta `is_starred` dihitung sebagai read-only. Dengan `JsonResponse`, kode view perlu merakit respons dan menangani validasi input secara terpisah.
+
+3. Autentikasi menentukan identitas pengguna dari sesi. Otorisasi menentukan tindakan yang boleh dilakukan identitas tersebut. Permission class memeriksa hak akses setiap permintaan. Menyembunyikan tombol membantu pengguna memahami aksesnya, tetapi permintaan langsung ke API tetap harus diperiksa di server. Contohnya, Editor boleh mengubah Education, sedangkan pembuatan dan penghapusan hanya diizinkan untuk superuser.
+
+4. Browser dapat mengirim cookie sesi secara otomatis pada permintaan tertentu. `SessionAuthentication` memeriksa token CSRF pada permintaan yang mengubah data agar sesi pengguna tidak disalahgunakan oleh situs lain. `force_authenticate()` melewati alur autentikasi sesi, sehingga pengujian CSRF menggunakan `APIClient(enforce_csrf_checks=True)` dan `.login()` untuk memeriksa penolakan tanpa token dan keberhasilan dengan token yang valid.
+
 ## AI Disclosure
 
 Pengerjaan tugas ini dibantu oleh AI. 
