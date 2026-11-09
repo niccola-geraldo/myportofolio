@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -7,9 +8,9 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from main.models import Project
+from main.models import Education, Project
 from main.permissions import IsPortfolioOwnerOrEditorOrReadOnly
-from main.serializers import ProjectSerializer
+from main.serializers import EducationSerializer, ProjectSerializer
 
 
 @api_view(["GET", "HEAD", "POST"])
@@ -65,3 +66,70 @@ def project_star(request, project_id):
         project.starred_by.add(request.user)
     serializer = ProjectSerializer(project, context={"request": request})
     return Response(serializer.data)
+
+
+@api_view(["GET", "HEAD", "POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsPortfolioOwnerOrEditorOrReadOnly])
+def education_list(request):
+    if request.method in ("GET", "HEAD"):
+        records = Education.objects.prefetch_related("starred_by").order_by(
+            "start_year", "id",
+        )
+        institution = request.query_params.get("institution", "").strip()
+        if institution:
+            records = records.filter(institution__icontains=institution)
+        serializer = EducationSerializer(
+            records, many=True, context={"request": request},
+        )
+        return Response(serializer.data)
+
+    serializer = EducationSerializer(data=request.data, context={"request": request})
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "HEAD", "PUT", "PATCH", "DELETE"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsPortfolioOwnerOrEditorOrReadOnly])
+def education_detail(request, education_id):
+    if request.method in ("GET", "HEAD"):
+        education = get_object_or_404(
+            Education.objects.prefetch_related("starred_by"), pk=education_id,
+        )
+        serializer = EducationSerializer(education, context={"request": request})
+        return Response(serializer.data)
+
+    with transaction.atomic():
+        education = get_object_or_404(
+            Education.objects.select_for_update(), pk=education_id,
+        )
+        if request.method == "DELETE":
+            education.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = EducationSerializer(
+            education, data=request.data, partial=request.method == "PATCH",
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def education_star(request, education_id):
+    with transaction.atomic():
+        education = get_object_or_404(
+            Education.objects.select_for_update(), pk=education_id,
+        )
+        if education.starred_by.filter(pk=request.user.pk).exists():
+            education.starred_by.remove(request.user)
+        else:
+            education.starred_by.add(request.user)
+
+        serializer = EducationSerializer(education, context={"request": request})
+        return Response(serializer.data)

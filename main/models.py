@@ -61,6 +61,9 @@ class Education(models.Model):
     end_year = models.PositiveIntegerField(blank=True, null=True)
     gpa = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_educations", blank=True
+    )
 
     def __str__(self):
         return f"{self.institution} ({self.get_degree_display()})"
