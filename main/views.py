@@ -254,7 +254,7 @@ def show_education(request):
         "nickname": OWNER_NICKNAME,
         "is_editor": _is_editor(request.user),
     }
-    if request.user.is_superuser:
+    if request.user.is_superuser or context["is_editor"]:
         context["form"] = EducationForm()
 
     return render(request, "education.html", context)

@@ -3,12 +3,12 @@
 {% block title %}Education - {{ name }}{% endblock title %}
 {% block content %}
     <main id="education-app"
-          data-json-url="{% url 'main:get_education_json' %}"
-          data-create-url="{% url 'main:create_education_ajax' %}"
-          data-update-url-template="{% url 'main:update_education' '00000000-0000-0000-0000-000000000000' %}"
-          data-delete-url-template="{% url 'main:delete_education' '00000000-0000-0000-0000-000000000000' %}"
+          data-list-url="{% url 'api:education-list' %}"
+          data-detail-url-template="{% url 'api:education-detail' '00000000-0000-0000-0000-000000000000' %}"
+          data-star-url-template="{% url 'api:education-star' '00000000-0000-0000-0000-000000000000' %}"
           data-is-superuser="{{ user.is_superuser|yesno:'true,false' }}"
-          data-is-editor="{{ is_editor|yesno:'true,false' }}">
+          data-is-editor="{{ is_editor|yesno:'true,false' }}"
+          data-is-authenticated="{{ user.is_authenticated|yesno:'true,false' }}">
         <section class="experience-section" id="education">
             <div class="container">
                 <p class="section-kicker">Riwayat pendidikan saya</p>
@@ -16,8 +16,9 @@
                     <h1>Education</h1>
                     {% if user.is_superuser %}
                         <button type="button"
+                                id="education-add-button"
                                 class="button education-add-button"
-                                popovertarget="add-education-modal">
+                                popovertarget="education-form-modal">
                             <span aria-hidden="true">+</span>
                             Tambah Pendidikan
                         </button>
@@ -50,7 +51,7 @@
         </section>
     </main>
 
-    {% if user.is_superuser %}
+    {% if user.is_superuser or is_editor %}
         {% include "components/education_form_modal.html" %}
     {% endif %}
 {% endblock content %}

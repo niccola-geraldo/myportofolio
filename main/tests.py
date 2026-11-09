@@ -539,10 +539,15 @@ class EducationTest(TestCase):
 
     def test_education_page_renders_ajax_skeleton(self):
         response = self.client.get(reverse("main:show_education"))
+        placeholder = "00000000-0000-0000-0000-000000000000"
 
         self.assertContains(response, 'id="education-app"')
         self.assertContains(response, 'id="education-grid"')
         self.assertContains(response, "js/education.js")
+        self.assertContains(response, reverse("api:education-list"))
+        self.assertContains(response, reverse("api:education-detail", args=[placeholder]))
+        self.assertContains(response, reverse("api:education-star", args=[placeholder]))
+        self.assertNotContains(response, reverse("main:get_education_json"))
         self.assertNotContains(response, self.education.description)
 
     def test_education_controls_follow_role_permissions(self):
@@ -551,25 +556,30 @@ class EducationTest(TestCase):
         response = self.client.get(education_url)
         self.assertContains(response, 'data-is-superuser="false"')
         self.assertContains(response, 'data-is-editor="false"')
+        self.assertContains(response, 'data-is-authenticated="false"')
         self.assertNotContains(response, 'id="education-form"')
 
         self.client.force_login(self.regular_user)
         response = self.client.get(education_url)
         self.assertContains(response, 'data-is-superuser="false"')
         self.assertContains(response, 'data-is-editor="false"')
+        self.assertContains(response, 'data-is-authenticated="true"')
         self.assertNotContains(response, 'id="education-form"')
 
         self.client.force_login(self.editor)
         response = self.client.get(education_url)
         self.assertContains(response, 'data-is-superuser="false"')
         self.assertContains(response, 'data-is-editor="true"')
-        self.assertNotContains(response, 'id="education-form"')
+        self.assertContains(response, 'id="education-form"')
+        self.assertNotContains(response, 'class="button education-add-button"')
 
         self.client.force_login(self.owner)
         response = self.client.get(education_url)
         self.assertContains(response, 'data-is-superuser="true"')
         self.assertContains(response, 'id="education-form"')
-        self.assertContains(response, reverse("main:create_education_ajax"))
+        self.assertContains(response, 'class="button education-add-button"')
+        self.assertContains(response, f'action="{reverse("api:education-list")}"')
+        self.assertNotContains(response, reverse("main:create_education_ajax"))
 
     def test_empty_education_page(self):
         Education.objects.all().delete()

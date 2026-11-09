@@ -1,24 +1,24 @@
-<div id="add-education-modal"
+<div id="education-form-modal"
      class="education-form-modal"
      popover="auto"
      role="dialog"
      aria-modal="true"
-     aria-labelledby="add-education-modal-title">
+     aria-labelledby="education-form-modal-title">
     <button type="button"
             class="education-form-modal__backdrop"
-            popovertarget="add-education-modal"
+            popovertarget="education-form-modal"
             popovertargetaction="hide"
-            aria-label="Tutup form tambah pendidikan"></button>
+            aria-label="Tutup form pendidikan"></button>
     <div class="education-form-modal__content">
         <button type="button"
                 class="education-form-modal__close"
-                popovertarget="add-education-modal"
+                popovertarget="education-form-modal"
                 popovertargetaction="hide"
-                aria-label="Tutup form tambah pendidikan">×</button>
-        <h2 id="add-education-modal-title">Tambah Pendidikan Baru</h2>
+                aria-label="Tutup form pendidikan">×</button>
+        <h2 id="education-form-modal-title">Data Pendidikan</h2>
         <form id="education-form"
               method="post"
-              action="{% url 'main:create_education_ajax' %}"
+              action="{% url 'api:education-list' %}"
               class="education-form">
             {% csrf_token %}
             {% for field in form %}
@@ -33,9 +33,9 @@
             <div class="education-form-modal__actions">
                 <button type="button"
                         class="button button-secondary"
-                        popovertarget="add-education-modal"
+                        popovertarget="education-form-modal"
                         popovertargetaction="hide">Batal</button>
-                <button type="submit" class="button">Tambah Pendidikan</button>
+                <button type="submit" class="button">Simpan</button>
             </div>
         </form>
     </div>
